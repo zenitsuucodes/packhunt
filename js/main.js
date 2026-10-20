@@ -6,7 +6,7 @@ import { Encounter } from './encounter.js';
 import { drawCard } from './cards.js';
 import { makeSparkles, animateSparkles } from './voxel.js';
 import { buildRealPack } from './pack3d.js';
-import { installTextures, preloadCard, showCard, hideCard, cardImage, TIER_COLOR } from './reveal.js';
+import { installTextures, installInspector, preloadCard, showCard, hideCard, cardImage, TIER_COLOR } from './reveal.js';
 import { CHALLENGES } from './challenges.js';
 import { getSession, connectWallet, disconnectWallet, shortAddr } from './wallet.js';
 
@@ -638,6 +638,7 @@ async function openBoard(quiet) {
 async function boot() {
   S.fontReady = document.fonts.load('20px "Press Start 2P"').catch(() => {});
   installTextures();
+  installInspector(() => sfx.click());
   S.enc = new Encounter($('#encStage'));
   $('#encStage').addEventListener('pointerdown', tapPack);
   $('#randomBtn').onclick = randomDrop;

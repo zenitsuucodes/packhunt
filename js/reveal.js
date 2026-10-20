@@ -89,4 +89,101 @@ export function hideCard() {
   removeEventListener('pointermove', onPointer);
   cancelAnimationFrame(tilt.raf);
   clearTimeout(flipTimer);
+  $('#inspect').hidden = true;
+}
+
+// ---------- card inspector: zoom (buttons, Ctrl+wheel, pinch, double-tap) and scroll/drag ----------
+const zoom = { z: 1, min: 1, max: 4 };
+
+function baseWidth() {
+  return Math.min(innerWidth * 0.9, (innerHeight - 140) * (63 / 88), 560);
+}
+
+// Zoom keeping the point under (cx, cy) in place.
+function setZoom(z, cx, cy) {
+  const sc = $('#inspectScroll');
+  const img = $('#inspectImg');
+  const old = zoom.z;
+  zoom.z = Math.min(zoom.max, Math.max(zoom.min, z));
+  const r = sc.getBoundingClientRect();
+  const px = (cx ?? r.left + r.width / 2) - r.left;
+  const py = (cy ?? r.top + r.height / 2) - r.top;
+  const fx = (sc.scrollLeft + px) / sc.scrollWidth;
+  const fy = (sc.scrollTop + py) / sc.scrollHeight;
+  img.style.setProperty('--w', `${baseWidth() * zoom.z}px`);
+  $('#zoomLabel').textContent = `${Math.round(zoom.z * 100)}%`;
+  if (old !== zoom.z) {
+    sc.scrollLeft = fx * sc.scrollWidth - px;
+    sc.scrollTop = fy * sc.scrollHeight - py;
+  }
+}
+
+export function openInspect() {
+  const src = $('#pcardImg').src;
+  if (!src) return;
+  $('#inspectImg').src = src;
+  $('#inspectImg').alt = $('#pcardImg').alt;
+  $('#inspect').hidden = false;
+  zoom.z = 1;
+  setZoom(1);
+}
+
+export function installInspector(onSound) {
+  const sc = $('#inspectScroll');
+  $('#pcard').addEventListener('click', () => {
+    if (!$('#pcard').classList.contains('live')) return;
+    onSound?.();
+    openInspect();
+  });
+  $('#inspectClose').onclick = () => { onSound?.(); $('#inspect').hidden = true; };
+  $('#zoomIn').onclick = () => setZoom(zoom.z * 1.4);
+  $('#zoomOut').onclick = () => setZoom(zoom.z / 1.4);
+  $('#inspectImg').addEventListener('dblclick', (e) => setZoom(zoom.z > 1.5 ? 1 : 2.5, e.clientX, e.clientY));
+  sc.addEventListener('wheel', (e) => {
+    if (!e.ctrlKey && !e.metaKey) return; // plain wheel scrolls
+    e.preventDefault();
+    setZoom(zoom.z * (e.deltaY < 0 ? 1.12 : 1 / 1.12), e.clientX, e.clientY);
+  }, { passive: false });
+  addEventListener('keydown', (e) => {
+    if ($('#inspect').hidden) return;
+    if (e.key === 'Escape') $('#inspect').hidden = true;
+    if (e.key === '+' || e.key === '=') setZoom(zoom.z * 1.25);
+    if (e.key === '-') setZoom(zoom.z / 1.25);
+  });
+
+  // Mouse drag to pan, two-finger pinch to zoom (touch scrolling stays native).
+  const pts = new Map();
+  let pinch = null;
+  let drag = null;
+  sc.addEventListener('pointerdown', (e) => {
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size === 2) {
+      const [a, b] = [...pts.values()];
+      pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: zoom.z };
+      drag = null;
+    } else if (e.pointerType === 'mouse') {
+      drag = { x: e.clientX, y: e.clientY, l: sc.scrollLeft, t: sc.scrollTop };
+      sc.classList.add('dragging');
+    }
+  });
+  sc.addEventListener('pointermove', (e) => {
+    if (!pts.has(e.pointerId)) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch && pts.size === 2) {
+      const [a, b] = [...pts.values()];
+      setZoom(pinch.z * (Math.hypot(a.x - b.x, a.y - b.y) / pinch.d), (a.x + b.x) / 2, (a.y + b.y) / 2);
+    } else if (drag) {
+      sc.scrollLeft = drag.l - (e.clientX - drag.x);
+      sc.scrollTop = drag.t - (e.clientY - drag.y);
+    }
+  });
+  const up = (e) => {
+    pts.delete(e.pointerId);
+    if (pts.size < 2) pinch = null;
+    drag = null;
+    sc.classList.remove('dragging');
+  };
+  sc.addEventListener('pointerup', up);
+  sc.addEventListener('pointercancel', up);
+  addEventListener('resize', () => { if (!$('#inspect').hidden) setZoom(zoom.z); });
 }

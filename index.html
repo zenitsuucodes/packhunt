@@ -128,11 +128,25 @@
         <div class="pcard-face pcard-back" id="pcardBack"></div>
       </div>
     </div>
+    <p class="zoom-hint">TAP THE CARD TO ZOOM IN</p>
     <div class="dialog reveal-info">
       <p id="revealText"></p>
       <div class="enc-actions" id="revealActions"></div>
     </div>
   </div>
+</section>
+
+<section id="inspect" class="screen" hidden>
+  <div class="inspect-scroll" id="inspectScroll">
+    <img id="inspectImg" alt="" draggable="false">
+  </div>
+  <div class="inspect-bar">
+    <button class="btn small" id="zoomOut" aria-label="Zoom out">-</button>
+    <span id="zoomLabel">100%</span>
+    <button class="btn small" id="zoomIn" aria-label="Zoom in">+</button>
+    <button class="btn small primary" id="inspectClose">CLOSE</button>
+  </div>
+  <p class="inspect-tip">Pinch, Ctrl + scroll or double-tap to zoom. Drag or scroll to look around.</p>
 </section>
 
 <section id="results" class="screen" hidden>
