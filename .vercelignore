@@ -1,0 +1,7 @@
+.env
+.env.local
+dev-server.mjs
+assets/src
+assets/packhunt_logo.png
+PLAN.md
+SETUP.md

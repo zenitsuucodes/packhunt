@@ -1,0 +1,136 @@
+// Shared server helpers: sealed hunt tokens, Google Street View metadata,
+// Upstash Redis admission limits and OpenStreetMap landmark lookups.
+import crypto from 'node:crypto';
+
+// ---------- sealed tokens (AES-256-GCM) ----------
+const KEY = crypto.createHash('sha256').update(process.env.TOKEN_SECRET || 'packhunt-dev-secret').digest();
+
+export function seal(obj) {
+  const iv = crypto.randomBytes(12);
+  const c = crypto.createCipheriv('aes-256-gcm', KEY, iv);
+  const enc = Buffer.concat([c.update(JSON.stringify(obj), 'utf8'), c.final()]);
+  return Buffer.concat([iv, c.getAuthTag(), enc]).toString('base64url');
+}
+
+export function unseal(token) {
+  try {
+    const b = Buffer.from(String(token), 'base64url');
+    const d = crypto.createDecipheriv('aes-256-gcm', KEY, b.subarray(0, 12));
+    d.setAuthTag(b.subarray(12, 28));
+    return JSON.parse(Buffer.concat([d.update(b.subarray(28)), d.final()]).toString('utf8'));
+  } catch {
+    return null;
+  }
+}
+
+// ---------- Google Street View metadata (free, unlimited) ----------
+// One website-restricted key can do everything: the server sends the site's URL as the
+// Referer so Google accepts it. A separate unrestricted server key is optional.
+export const SERVER_KEY = process.env.MAPS_SERVER_KEY || process.env.MAPS_BROWSER_KEY || '';
+export const MOCK = !SERVER_KEY;
+export const googleHeaders = { Referer: process.env.SITE_URL || 'http://localhost:5200/' };
+
+// Snap a point to the nearest outdoor, Google-made Street View panorama.
+export async function snap(p, radius) {
+  if (MOCK) return { lat: p.lat, lng: p.lng, pano: null };
+  const u = new URL('https://maps.googleapis.com/maps/api/streetview/metadata');
+  u.search = new URLSearchParams({
+    location: `${p.lat},${p.lng}`, radius: String(radius), source: 'google', key: SERVER_KEY,
+  });
+  try {
+    const r = await fetch(u, { headers: googleHeaders, signal: AbortSignal.timeout(5000) });
+    const j = await r.json();
+    if (j.status !== 'OK' || !j.location) return null;
+    if (j.copyright && !/google/i.test(j.copyright)) return null; // skip user photospheres
+    return { lat: j.location.lat, lng: j.location.lng, pano: j.pano_id };
+  } catch {
+    return null;
+  }
+}
+
+// ---------- Upstash Redis (REST) ----------
+const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL;
+const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+export const HAS_REDIS = Boolean(REDIS_URL && REDIS_TOKEN);
+
+async function redis(...cmd) {
+  const r = await fetch(REDIS_URL, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${REDIS_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(cmd),
+    signal: AbortSignal.timeout(4000),
+  });
+  const j = await r.json();
+  if (j.error) throw new Error(j.error);
+  return j.result;
+}
+
+// Every new hunt creates one billed Street View load, so cap hunts per IP per day
+// and per month overall. Fails closed when Redis is configured but unreachable.
+export async function admit(ip) {
+  if (!HAS_REDIS) return { ok: true };
+  try {
+    const day = new Date().toISOString().slice(0, 10);
+    const ipKey = `ip:${day}:${ip}`;
+    const n = await redis('INCR', ipKey);
+    if (n === 1) await redis('EXPIRE', ipKey, 90000);
+    if (n > Number(process.env.DAILY_HUNTS_PER_IP || 10)) {
+      return { ok: false, reason: "You've hit today's hunt limit. Come back tomorrow!" };
+    }
+    const m = await redis('INCR', `cap:${day.slice(0, 7)}`);
+    if (m > Number(process.env.MONTHLY_HUNT_CAP || 4500)) {
+      return { ok: false, reason: 'All expeditions are full this month. Check back soon!' };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, reason: 'The server is busy. Try again in a minute.' };
+  }
+}
+
+export function clientIp(req) {
+  const fwd = req.headers['x-forwarded-for'];
+  return (fwd ? String(fwd).split(',')[0] : req.socket?.remoteAddress || 'local').trim();
+}
+
+// ---------- landmarks for clues (one lookup per hunt) ----------
+// The public Overpass server is often overloaded, so Wikipedia's geosearch backs it up.
+export async function landmarks(p) {
+  const [osm, wiki] = await Promise.all([osmLandmarks(p), wikiLandmark(p)]);
+  return { street: osm.street, landmark: osm.landmark || wiki };
+}
+
+async function wikiLandmark(p) {
+  const u = `https://en.wikipedia.org/w/api.php?action=query&list=geosearch&gscoord=${p.lat}|${p.lng}&gsradius=150&gslimit=5&format=json`;
+  try {
+    const r = await fetch(u, { headers: { 'User-Agent': 'Packhunt/0.1 (personal game)' }, signal: AbortSignal.timeout(4000) });
+    const hit = (await r.json()).query?.geosearch?.find((g) => !/outbreak|disaster|bombing|attack|murder/i.test(g.title));
+    return hit ? { name: hit.title, kind: null } : null;
+  } catch {
+    return null;
+  }
+}
+
+async function osmLandmarks(p) {
+  const a = `around:100,${p.lat},${p.lng}`;
+  const q = `[out:json][timeout:5];(nwr(${a})["name"]["tourism"];nwr(${a})["name"]["historic"];` +
+    `nwr(${a})["name"]["leisure"];nwr(${a})["name"]["amenity"];nwr(${a})["name"]["shop"];);out tags 25;` +
+    `way(around:35,${p.lat},${p.lng})["highway"]["name"];out tags 3;`;
+  try {
+    const r = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'Packhunt/0.1 (personal game)' },
+      body: `data=${encodeURIComponent(q)}`,
+      signal: AbortSignal.timeout(5000),
+    });
+    const els = (await r.json()).elements || [];
+    const street = els.find((e) => e.tags?.highway)?.tags.name || null;
+    let landmark = null;
+    for (const k of ['tourism', 'historic', 'leisure', 'amenity', 'shop']) {
+      const e = els.find((x) => x.tags && !x.tags.highway && x.tags[k] && x.tags[k] !== 'yes');
+      if (e) { landmark = { name: e.tags.name, kind: String(e.tags[k]).replace(/_/g, ' ') }; break; }
+    }
+    return { street, landmark };
+  } catch {
+    return { street: null, landmark: null };
+  }
+}

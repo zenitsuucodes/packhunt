@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Packhunt</title>
+<meta name="description" content="Hunt for 3D booster packs hidden in Google Street View, anywhere on Earth.">
+<link rel="icon" href="assets/pack_gold.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js" } }
+</script>
+</head>
+<body>
+<div id="stage"><div id="pano"></div></div>
+
+<header id="hud" hidden>
+  <span class="logo">PACKHUNT</span>
+  <span id="hudPacks">0/0</span>
+  <span id="hudTime">00:00</span>
+  <span id="hudScore">0</span>
+  <button class="icon-btn" id="hudBag" aria-label="Open bag">BAG</button>
+  <button class="icon-btn" id="hudSound" aria-label="Toggle sound">SND</button>
+  <button class="icon-btn" id="hudQuit" aria-label="Quit hunt">X</button>
+</header>
+<div id="radar" hidden>Something shiny is nearby...</div>
+
+<div id="hintbox" class="dialog" hidden>
+  <div class="hint-head" id="hintHead">
+    <span>GOLDEN PACK CLUES <span id="hintLevel">1/5</span></span>
+    <span class="muted" id="hintNext"></span>
+  </div>
+  <ol id="hintList"></ol>
+</div>
+
+<section id="title" class="screen">
+  <div class="title-wrap">
+    <div id="titlePack" class="title-pack"></div>
+    <h1 class="big-logo">PACK<br>HUNT</h1>
+    <p class="tag">3D packs are hidden in Street View on every street on Earth. Follow the clues. Find the Golden one.</p>
+    <div class="dialog menu" id="menu">
+      <button class="btn primary" id="randomBtn">&#9654; RANDOM DROP</button>
+      <button class="btn" id="pickBtn">PICK A SPOT</button>
+      <button class="btn" id="bagBtn">MY BAG <span id="bagCount"></span></button>
+      <p class="muted" id="bestLine"></p>
+    </div>
+    <div class="dialog menu" id="setup" hidden>
+      <p>Almost ready!</p>
+      <p class="muted">The server has no Google Maps key yet. Add MAPS_BROWSER_KEY and MAPS_SERVER_KEY (see SETUP.md).</p>
+      <a class="btn" href="?demo">TRY THE PACK OPENING</a>
+    </div>
+  </div>
+</section>
+
+<section id="picker" class="screen" hidden>
+  <div id="pickmap"></div>
+  <div class="dialog picker-bar">
+    <span>Tap anywhere on Earth to drop in.</span>
+    <button class="btn small" id="pickBack">BACK</button>
+  </div>
+</section>
+
+<section id="loading" class="screen" hidden>
+  <div class="dialog loading-box"><div class="spinner"></div><p id="loadingText">Looking for a street...</p></div>
+</section>
+
+<section id="encounter" class="screen" hidden>
+  <div class="field">
+    <div class="platform"></div>
+    <div id="encStage"></div>
+    <div id="flash"></div>
+  </div>
+  <div class="dialog enc-dialog">
+    <p id="encText"></p>
+    <div class="enc-actions" id="encActions"></div>
+  </div>
+</section>
+
+<section id="results" class="screen" hidden>
+  <div class="dialog results">
+    <h2>HUNT COMPLETE!</h2>
+    <p id="resStats"></p>
+    <p id="resBest" class="best"></p>
+    <button class="btn primary" id="againBtn">&#9654; HUNT AGAIN</button>
+    <button class="btn" id="resBag">MY BAG</button>
+  </div>
+</section>
+
+<section id="bag" class="screen" hidden>
+  <div class="dialog bag-box">
+    <div class="bag-head"><h2>MY BAG</h2><button class="btn small" id="bagClose">CLOSE</button></div>
+    <div id="bagGrid"></div>
+  </div>
+</section>
+
+<div id="toast" hidden></div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
