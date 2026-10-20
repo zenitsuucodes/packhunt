@@ -41,7 +41,8 @@ export default async function handler(req, res) {
   const packs = spots.map((s, i) => {
     // Nudge each pack a few metres off the camera spot so it is visible from the street.
     const side = offset(s, 3.5, Math.random() * 360);
-    return { id: i, g: i === 0 ? 1 : 0, lat: side.lat, lng: side.lng, o: 0 };
+    // pn/sl/sg: the panorama the pack is seen from, for the "found at" photo.
+    return { id: i, g: i === 0 ? 1 : 0, lat: side.lat, lng: side.lng, o: 0, pn: s.pano, sl: s.lat, sg: s.lng };
   });
   const gold = packs[0];
   const st = {

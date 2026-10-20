@@ -1,6 +1,6 @@
 // POST /api/open {token, packId, lat, lng} -> rip a nearby pack; the card is rolled here.
 import { dist, SEE_RANGE } from '../js/geo.js';
-import { seal, unseal } from './_lib/server.js';
+import { seal, unseal, placeName } from './_lib/server.js';
 import { view, validPos, tooFast, rollCard, HUNT_TTL } from './_lib/game.js';
 
 export default async function handler(req, res) {
@@ -28,5 +28,14 @@ export default async function handler(req, res) {
   st.lp = { ...pos, t: now };
   const v = view(st, pos, now);
   st.gd = v.goldDist;
-  return res.status(200).json({ token: seal(st), card, bonusHint: !pack.g, finishTime: st.ft ?? null, ...v });
+  const foundAt = {
+    place: await placeName(pack),
+    lat: Number(pack.lat.toFixed(5)),
+    lng: Number(pack.lng.toFixed(5)),
+    at: now,
+    photo: pack.pn
+      ? `/api/photo?p=${seal({ pano: pack.pn, from: { lat: pack.sl, lng: pack.sg }, to: { lat: pack.lat, lng: pack.lng }, big: 1 })}`
+      : null,
+  };
+  return res.status(200).json({ token: seal(st), card, foundAt, bonusHint: !pack.g, finishTime: st.ft ?? null, ...v });
 }

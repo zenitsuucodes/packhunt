@@ -2,6 +2,9 @@
   "name": "packhunt",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "node dev-server.mjs"
   }

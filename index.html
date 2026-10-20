@@ -52,6 +52,7 @@
       <p class="muted">The server has no Google Maps key yet. Add MAPS_BROWSER_KEY and MAPS_SERVER_KEY (see SETUP.md).</p>
       <a class="btn" href="?demo">TRY THE PACK OPENING</a>
     </div>
+    <p class="disclaimer">Unofficial fan project. Not affiliated with Nintendo or The Pokémon Company. Cards are digital collectibles with no value.</p>
   </div>
 </section>
 
@@ -76,6 +77,32 @@
   <div class="dialog enc-dialog">
     <p id="encText"></p>
     <div class="enc-actions" id="encActions"></div>
+  </div>
+</section>
+
+<section id="reveal" class="screen" hidden>
+  <div class="reveal-bg" id="revealBg"></div>
+  <div class="reveal-wrap">
+    <div class="found-tag" id="foundTag">
+      <span class="found-label">FOUND AT</span>
+      <span id="foundPlace"></span>
+      <span class="found-meta" id="foundMeta"></span>
+    </div>
+    <div class="pcard" id="pcard">
+      <div class="pcard-inner">
+        <div class="pcard-face pcard-front">
+          <img id="pcardImg" alt="" draggable="false">
+          <div class="shine"></div>
+          <div class="sparkle"></div>
+          <div class="glare"></div>
+        </div>
+        <div class="pcard-face pcard-back" id="pcardBack"></div>
+      </div>
+    </div>
+    <div class="dialog reveal-info">
+      <p id="revealText"></p>
+      <div class="enc-actions" id="revealActions"></div>
+    </div>
   </div>
 </section>
 

@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   if (!spot || MOCK) return res.status(404).json({ error: 'No photo' });
   const u = new URL('https://maps.googleapis.com/maps/api/streetview');
   u.search = new URLSearchParams({
-    size: '480x300', pano: spot.pano, heading: String(Math.round(bearing(spot.from, spot.to))),
+    size: spot.big ? '640x400' : '480x300', pano: spot.pano, heading: String(Math.round(bearing(spot.from, spot.to))),
     fov: '75', pitch: '-8', key: SERVER_KEY,
   });
   try {

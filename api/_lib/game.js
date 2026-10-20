@@ -4,25 +4,36 @@ import { dist, bearing, compass, SEE_RANGE, NEAR_RANGE, HINT_EVERY, MAX_HINTS } 
 
 export const HUNT_TTL = 3 * 60 * 60 * 1000;
 
-const RARITIES = [
-  { rarity: 'COMMON', pts: 10, weight: 60 },
-  { rarity: 'UNCOMMON', pts: 25, weight: 25 },
-  { rarity: 'RARE', pts: 60, weight: 11 },
-  { rarity: 'HOLO', pts: 150, weight: 4 },
+// Real card pool built by scripts/build-cards.mjs.
+import cards from '../../data/cards.json' with { type: 'json' };
+
+const POOL = {};
+for (const c of cards) (POOL[c.t] ||= []).push(c);
+
+// Normal packs: weighted tiers, with a tiny chance of a golden-tier pull.
+const TIERS = [
+  { tier: 'COMMON', pts: 10, weight: 55 },
+  { tier: 'UNCOMMON', pts: 25, weight: 25 },
+  { tier: 'RARE', pts: 60, weight: 13 },
+  { tier: 'HOLO', pts: 150, weight: 6 },
+  { tier: 'GOLDEN', pts: 500, weight: 1 },
 ];
-const TYPES = ['FIRE', 'WATER', 'GRASS', 'SPARK', 'SHADE', 'STONE'];
-const NAMES = ['Blazepup', 'Voltoad', 'Mossling', 'Aquafin', 'Rockmole', 'Zephkit', 'Frostail', 'Gloomoth',
-  'Sparrowl', 'Thornox', 'Puddlex', 'Cindereel', 'Boulderbun', 'Mistwing', 'Pebblepaw', 'Fizzlynx',
-  'Embercub', 'Driftkoi', 'Sproutle', 'Shadowisp', 'Quartzle', 'Gustling', 'Lumoth', 'Brambear'];
 
 const pick = (a) => a[crypto.randomInt(a.length)];
 
+export function cardOfTier(name) {
+  const tier = TIERS.find((t) => t.tier === name) || TIERS[0];
+  const c = pick(POOL[tier.tier]);
+  return {
+    id: c.id, name: c.n, set: c.s, rarity: c.r, tier: tier.tier, img: c.i, pts: tier.pts,
+    foil: tier.tier === 'HOLO' || tier.tier === 'GOLDEN',
+  };
+}
+
 export function rollCard(golden) {
-  const seed = crypto.randomInt(2 ** 31);
-  if (golden) return { name: pick(NAMES), type: 'LEGEND', rarity: 'GOLDEN', pts: 500, seed };
+  if (golden) return cardOfTier('GOLDEN');
   let r = crypto.randomInt(100);
-  const tier = RARITIES.find((x) => (r -= x.weight) < 0) || RARITIES[0];
-  return { name: pick(NAMES), type: pick(TYPES), rarity: tier.rarity, pts: tier.pts, seed };
+  return cardOfTier((TIERS.find((x) => (r -= x.weight) < 0) || TIERS[0]).tier);
 }
 
 export function validPos(b) {

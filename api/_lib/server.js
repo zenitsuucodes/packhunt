@@ -92,6 +92,27 @@ export function clientIp(req) {
   return (fwd ? String(fwd).split(',')[0] : req.socket?.remoteAddress || 'local').trim();
 }
 
+// ---------- "found at" place names (one lookup per opened pack) ----------
+export async function placeName(p) {
+  const u = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${p.lat}&lon=${p.lng}&zoom=17&accept-language=en`;
+  try {
+    const r = await fetch(u, {
+      headers: { 'User-Agent': 'Packhunt/0.1 (personal game; github.com/zenitsuucodes/packhunt)' },
+      signal: AbortSignal.timeout(3500),
+    });
+    const a = (await r.json()).address || {};
+    const parts = [
+      a.road || a.pedestrian || a.footway || a.square,
+      a.neighbourhood || a.suburb || a.quarter,
+      a.city || a.town || a.village || a.municipality || a.county,
+      a.country,
+    ].filter(Boolean);
+    return [...new Set(parts)].join(', ') || null;
+  } catch {
+    return null;
+  }
+}
+
 // ---------- landmarks for clues (one lookup per hunt) ----------
 // The public Overpass server is often overloaded, so Wikipedia's geosearch backs it up.
 export async function landmarks(p) {

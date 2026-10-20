@@ -5,6 +5,7 @@ import { PackOverlay } from './overlay.js';
 import { Encounter } from './encounter.js';
 import { drawCard } from './cards.js';
 import { voxelData, buildPack, makeSparkles, animateSparkles } from './voxel.js';
+import { installTextures, preloadCard, showCard, hideCard, cardImage, TIER_COLOR } from './reveal.js';
 
 const $ = (s) => document.querySelector(s);
 const rand = (a) => a[Math.floor(Math.random() * a.length)];
@@ -56,8 +57,7 @@ function say(text, done) {
   }, 24);
 }
 
-function actions(list) {
-  const box = $('#encActions');
+function actions(list, box = $('#encActions')) {
   box.innerHTML = '';
   for (const a of list) {
     const b = document.createElement('button');
@@ -299,7 +299,7 @@ function startRip() {
   S.ripping = true;
   S.epoch++;
   if (S.demo) {
-    S.openReq = Promise.resolve(demoCard(S.cur.gold));
+    S.openReq = demoCard(S.cur.gold);
   } else {
     const p = S.pano.getPosition();
     S.openReq = api('/api/open', { token: S.token, packId: S.cur.id, lat: p.lat(), lng: p.lng() });
@@ -327,12 +327,18 @@ async function finishRip() {
   if (r.token) S.token = r.token;
   S.pending = r.hints ? r : null;
   await S.fontReady;
+  const c = r.card;
+  const ready = c.img ? preloadCard(c) : null;
   flash('white');
   sfx.rip();
-  setTimeout(() => sfx.reveal(r.card.rarity), 650);
-  addToBag(r.card);
-  await S.enc.rip(r.card);
-  const c = r.card;
+  addToBag({ ...c, place: r.foundAt?.place || null, at: r.foundAt?.at || Date.now() });
+  await S.enc.rip(c);
+  if (c.img) {
+    await ready;
+    showReveal(r);
+    return;
+  }
+  setTimeout(() => sfx.reveal(c.rarity), 100);
   if (c.rarity === 'GOLDEN') {
     S.finishTime = r.finishTime;
     S.finalScore = r.score;
@@ -344,8 +350,40 @@ async function finishRip() {
   }
 }
 
+function pill(card) {
+  return `<span class="rarity-pill" style="background:${TIER_COLOR[card.tier] || '#7880a0'}">${card.rarity}</span>`;
+}
+
+// The real card, over a Street View photo of the exact spot it was found.
+function showReveal(r) {
+  const c = r.card;
+  const gold = S.cur.gold;
+  S.enc.stop();
+  screen('reveal');
+  showCard(c, r.foundAt);
+  setTimeout(() => sfx.reveal(c.tier), 450);
+  if (c.tier === 'GOLDEN' || c.tier === 'HOLO') setTimeout(() => flash('white'), 900);
+  if (gold) {
+    S.finishTime = r.finishTime;
+    S.finalScore = r.score;
+  }
+  const box = $('#revealActions');
+  box.innerHTML = '';
+  $('#revealText').innerHTML = '';
+  setTimeout(() => {
+    $('#revealText').innerHTML = `${pill(c)}${gold ? 'LEGENDARY! ' : ''}You pulled <b></b>! ` +
+      `<span class="muted"></span> +${c.pts} pts${r.bonusHint ? '. New clue unlocked!' : ''}`;
+    $('#revealText b').textContent = c.name;
+    $('#revealText .muted').textContent = c.set;
+    actions(gold
+      ? [{ label: '▶ FINISH', cls: 'gold', fn: finish }]
+      : [{ label: '▶ KEEP HUNTING', cls: 'primary', fn: closeEncounter }], box);
+  }, 1100);
+}
+
 function closeEncounter() {
   sfx.click();
+  hideCard();
   S.enc.stop();
   screen(null);
   S.busy = false;
@@ -355,6 +393,7 @@ function closeEncounter() {
 
 function finish() {
   sfx.click();
+  hideCard();
   S.enc.stop();
   S.busy = false;
   S.done = true;
@@ -402,8 +441,28 @@ async function openBag() {
   grid.innerHTML = '';
   const bag = store.get('packhunt_bag', []);
   if (!bag.length) grid.innerHTML = '<p class="muted">No cards yet. Go rip some packs!</p>';
-  for (const card of bag) grid.appendChild(drawCard(card, 192));
+  for (const card of bag) {
+    if (!card.img) { grid.appendChild(drawCard(card, 192)); continue; }
+    const b = document.createElement('button');
+    b.className = `bag-card${card.foil ? ' foil' : ''}`;
+    b.innerHTML = '<div class="thumb"><img loading="lazy" alt=""></div><span></span>';
+    b.querySelector('img').src = cardImage(card, false);
+    b.querySelector('img').alt = card.name;
+    b.querySelector('span').textContent = card.place ? card.place.split(', ').slice(-2).join(', ') : card.set;
+    b.onclick = () => viewCard(card);
+    grid.appendChild(b);
+  }
   screen('bag');
+}
+
+function viewCard(card) {
+  sfx.click();
+  screen('reveal');
+  showCard(card, card.place || card.at ? { place: card.place, at: card.at } : null);
+  $('#revealText').innerHTML = `${pill(card)}<b></b> <span class="muted"></span>`;
+  $('#revealText b').textContent = card.name;
+  $('#revealText .muted').textContent = card.set;
+  actions([{ label: 'BACK', fn: () => { sfx.click(); hideCard(); screen('bag'); } }], $('#revealActions'));
 }
 
 function refreshTitle() {
@@ -448,13 +507,14 @@ async function titlePack() {
 }
 
 // ---------- demo (no Google needed): ?demo or ?demo=gold ----------
-function demoCard(gold) {
-  const names = ['Blazepup', 'Voltoad', 'Mossling', 'Aquafin', 'Zephkit', 'Lumoth'];
-  const types = ['FIRE', 'WATER', 'GRASS', 'SPARK', 'SHADE', 'STONE'];
-  const tiers = [['COMMON', 10, 45], ['UNCOMMON', 25, 25], ['RARE', 60, 18], ['HOLO', 150, 12]];
-  let roll = Math.random() * 100;
-  const [rarity, pts] = gold ? ['GOLDEN', 500] : tiers.find((x) => (roll -= x[2]) < 0) || tiers[0];
-  return { card: { name: rand(names), type: gold ? 'LEGEND' : rand(types), rarity, pts, seed: Math.floor(Math.random() * 2 ** 31) }, bonusHint: !gold };
+async function demoCard(gold) {
+  const tier = gold ? 'GOLDEN' : rand(['COMMON', 'UNCOMMON', 'RARE', 'HOLO', 'HOLO']);
+  try {
+    const { card } = await (await fetch(`/api/card?tier=${tier}`)).json();
+    return { card, bonusHint: !gold, foundAt: { place: 'Demo Street, Pallet Town', at: Date.now(), photo: null } };
+  } catch {
+    return { error: 'Could not reach the server.' };
+  }
 }
 
 function demoEncounter() {
@@ -468,6 +528,7 @@ function demoEncounter() {
 // ---------- boot ----------
 async function boot() {
   S.fontReady = document.fonts.load('20px "Press Start 2P"').catch(() => {});
+  installTextures();
   S.enc = new Encounter($('#encStage'));
   $('#encStage').addEventListener('pointerdown', tapPack);
   $('#randomBtn').onclick = randomDrop;

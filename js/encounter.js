@@ -171,6 +171,13 @@ export class Encounter {
     if (top) this.tween(800, (p) => { top.position.set(p * 2.2, p * 3.5 - p * p * 1.5, p); top.rotation.z = -p * 5; });
     this.tween(650, (p) => { body.position.y = -p * 4; body.scale.setScalar(1 - p * 0.5); }, 120);
 
+    // Real cards are revealed by the DOM card screen instead of a 3D card.
+    if (card.img) {
+      if (card.foil) this.burst(['#f8c830', '#ff6080', '#60c0ff', '#ffffff'], new THREE.Vector3(0, 1.2, 0), 1.3);
+      await this.tween(750, () => {});
+      return;
+    }
+
     this.card = makeCard(card);
     this.card.position.set(0, -0.6, 0.2);
     this.card.scale.setScalar(0.05);
