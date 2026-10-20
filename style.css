@@ -60,6 +60,29 @@ body {
 .tag { color: #c8d8f0; font-size: 9px; line-height: 1.9; margin: 20px 0 22px; }
 .menu { display: flex; flex-direction: column; gap: 12px; text-align: left; }
 .menu .muted { text-align: center; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.row2 .btn { font-size: 9px; padding: 10px 6px; }
+.wallet-btn { background: #ab9ff2; color: #1c1440; font-size: 9px; }
+.wallet-btn.connected { background: #d8f0d0; color: #22502a; }
+
+.list-box { width: 100%; max-width: 640px; max-height: 92vh; display: flex; flex-direction: column; gap: 12px; }
+#challengeList { overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; padding: 2px; }
+.challenge {
+  font: inherit; text-align: left; cursor: pointer; background: #fff; color: #283040;
+  border: 3px solid #303848; border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 6px;
+  box-shadow: 0 3px 0 #303848;
+}
+.challenge:active { transform: translateY(3px); box-shadow: none; }
+.challenge .c-name { font-size: 11px; color: #e03c28; }
+.challenge .c-place { font-size: 8px; color: #485068; }
+.challenge .c-blurb { font-size: 8px; line-height: 1.7; color: #687890; }
+.challenge .c-foot { display: flex; justify-content: space-between; align-items: center; font-size: 8px; color: #b8860b; }
+.challenge .c-stars { font-family: Arial, sans-serif; font-size: 16px; letter-spacing: 2px; }
+.rewards { background: #fff6d8; border: 3px solid #f8c830; border-radius: 6px; padding: 10px; font-size: 8px; line-height: 1.8; display: flex; flex-direction: column; gap: 6px; }
+.rewards-title { color: #b8860b; font-size: 10px; }
+#boardList { overflow-y: auto; padding-left: 26px; font-size: 9px; line-height: 2.2; }
+#boardList li.me { color: #e03c28; }
+#hudTime.urgent { color: #ff6050; animation: pulse .6s ease-in-out infinite; }
 .disclaimer { color: #7888a8; font-size: 7px; line-height: 1.8; margin-top: 18px; }
 
 /* Picker */
@@ -174,12 +197,12 @@ body {
 .glare {
   position: absolute; inset: 0; pointer-events: none; mix-blend-mode: overlay;
   background: radial-gradient(farthest-corner circle at var(--mx) var(--my),
-    rgba(255, 255, 255, .7) 0%, rgba(255, 255, 255, .2) 22%, rgba(0, 0, 0, .35) 90%);
-  opacity: .55;
+    rgba(255, 255, 255, .55) 0%, rgba(255, 255, 255, .12) 25%, rgba(0, 0, 0, .2) 90%);
+  opacity: .35;
 }
 .shine, .sparkle { position: absolute; inset: 0; pointer-events: none; display: none; }
 .pcard.foil .shine {
-  display: block; mix-blend-mode: color-dodge; opacity: .55;
+  display: block; mix-blend-mode: color-dodge; opacity: .22;
   background-image:
     var(--glitter),
     repeating-linear-gradient(115deg, #ff7a7a 0%, #ffe86a 5%, #9dff7a 10%, #7af2ff 15%, #7a9dff 20%, #e47aff 25%, #ff7a7a 30%),
@@ -187,21 +210,23 @@ body {
   background-size: 160px 160px, 400% 400%, 100% 100%;
   background-position: center, var(--px) var(--py), center;
   background-blend-mode: soft-light, normal, overlay;
-  filter: brightness(.7) contrast(1.5) saturate(1.3);
+  filter: brightness(.6) contrast(1.4) saturate(1.2);
+  -webkit-mask-image: radial-gradient(circle at var(--mx) var(--my), #000 0%, rgba(0,0,0,.45) 55%, rgba(0,0,0,.25) 100%);
+  mask-image: radial-gradient(circle at var(--mx) var(--my), #000 0%, rgba(0,0,0,.45) 55%, rgba(0,0,0,.25) 100%);
 }
 .pcard.golden .shine {
   background-image:
     var(--glitter),
     repeating-linear-gradient(115deg, #fff2a8 0%, #ffc83a 6%, #ff9f2e 12%, #fff6c8 18%, #ffd85a 24%, #fff2a8 30%),
     repeating-linear-gradient(-45deg, rgba(0, 0, 0, .4) 0 1px, transparent 1px 4px);
-  opacity: .62;
+  opacity: .26;
 }
 .pcard.foil .sparkle {
-  display: block; mix-blend-mode: color-dodge; opacity: .9;
+  display: block; mix-blend-mode: color-dodge; opacity: .5;
   background-image: var(--glitter); background-size: 90px 90px;
   background-position: calc(var(--px) * -1) var(--py);
-  -webkit-mask-image: radial-gradient(circle at var(--mx) var(--my), #000 0%, transparent 45%);
-  mask-image: radial-gradient(circle at var(--mx) var(--my), #000 0%, transparent 45%);
+  -webkit-mask-image: radial-gradient(circle at var(--mx) var(--my), #000 0%, transparent 30%);
+  mask-image: radial-gradient(circle at var(--mx) var(--my), #000 0%, transparent 30%);
 }
 .pcard.golden::before, .pcard.holo::before {
   content: ""; position: absolute; inset: -14%; z-index: -1; border-radius: 50%;

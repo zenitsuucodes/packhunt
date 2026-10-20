@@ -42,9 +42,16 @@
     <h1 class="big-logo">PACK<br>HUNT</h1>
     <p class="tag">3D packs are hidden in Street View on every street on Earth. Follow the clues. Find the Golden one.</p>
     <div class="dialog menu" id="menu">
-      <button class="btn primary" id="randomBtn">&#9654; RANDOM DROP</button>
-      <button class="btn" id="pickBtn">PICK A SPOT</button>
-      <button class="btn" id="bagBtn">MY BAG <span id="bagCount"></span></button>
+      <button class="btn primary" id="challengesBtn">&#9654; CHALLENGES</button>
+      <div class="row2">
+        <button class="btn" id="randomBtn">WILD DROP</button>
+        <button class="btn" id="pickBtn">PICK A SPOT</button>
+      </div>
+      <div class="row2">
+        <button class="btn" id="bagBtn">MY BAG <span id="bagCount"></span></button>
+        <button class="btn" id="boardBtn">LEADERBOARD</button>
+      </div>
+      <button class="btn wallet-btn" id="walletBtn">CONNECT SOLANA WALLET</button>
       <p class="muted" id="bestLine"></p>
     </div>
     <div class="dialog menu" id="setup" hidden>
@@ -52,7 +59,29 @@
       <p class="muted">The server has no Google Maps key yet. Add MAPS_BROWSER_KEY and MAPS_SERVER_KEY (see SETUP.md).</p>
       <a class="btn" href="?demo">TRY THE PACK OPENING</a>
     </div>
-    <p class="disclaimer">Unofficial fan project. Not affiliated with Nintendo or The Pokémon Company. Cards are digital collectibles with no value.</p>
+    <p class="disclaimer">Unofficial fan project. Not affiliated with Nintendo or The Pokémon Company. Cards are digital collectibles with no monetary value. Weekly rewards are offered by the creator at their discretion.</p>
+  </div>
+</section>
+
+<section id="challenges" class="screen" hidden>
+  <div class="dialog list-box">
+    <div class="bag-head"><h2>CHALLENGES</h2><button class="btn small" id="challengesClose">BACK</button></div>
+    <p class="muted">Famous spots, a ticking clock and one Golden pack. Finish faster for a bigger time bonus.</p>
+    <div id="challengeList"></div>
+  </div>
+</section>
+
+<section id="board" class="screen" hidden>
+  <div class="dialog list-box">
+    <div class="bag-head"><h2>LEADERBOARD</h2><button class="btn small" id="boardClose">BACK</button></div>
+    <div class="rewards">
+      <p class="rewards-title">WEEKLY REWARDS</p>
+      <p>The top collector each week wins rewards from the creator rewards pool. Top collectors also get a chance to win the value of a Pokémon card from the pool.</p>
+      <p class="muted">Connect a Solana wallet so your finished hunts count. Resets every Monday.</p>
+    </div>
+    <button class="btn wallet-btn" id="boardWallet">CONNECT SOLANA WALLET</button>
+    <p class="muted" id="boardWeek"></p>
+    <ol id="boardList"></ol>
   </div>
 </section>
 
@@ -108,9 +137,10 @@
 
 <section id="results" class="screen" hidden>
   <div class="dialog results">
-    <h2>HUNT COMPLETE!</h2>
+    <h2 id="resTitle">HUNT COMPLETE!</h2>
     <p id="resStats"></p>
     <p id="resBest" class="best"></p>
+    <p id="resWallet" class="muted"></p>
     <button class="btn primary" id="againBtn">&#9654; HUNT AGAIN</button>
     <button class="btn" id="resBag">MY BAG</button>
   </div>

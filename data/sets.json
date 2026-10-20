@@ -1,0 +1,58 @@
+[
+ {
+  "id": "base1",
+  "name": "Base",
+  "color": "#2a6bd1",
+  "art": "base1/4",
+  "golden": false
+ },
+ {
+  "id": "base2",
+  "name": "Jungle",
+  "color": "#2e8b3e",
+  "art": "base2/11",
+  "golden": false
+ },
+ {
+  "id": "base3",
+  "name": "Fossil",
+  "color": "#7b5ea7",
+  "art": "base3/5",
+  "golden": false
+ },
+ {
+  "id": "sv3pt5",
+  "name": "151",
+  "color": "#d93838",
+  "art": "sv3pt5/6",
+  "golden": true
+ },
+ {
+  "id": "swsh7",
+  "name": "Evolving Skies",
+  "color": "#1f6f8b",
+  "art": "swsh7/94",
+  "golden": true
+ },
+ {
+  "id": "swsh12pt5",
+  "name": "Crown Zenith",
+  "color": "#c9a227",
+  "art": "swsh12pt5/18",
+  "golden": true
+ },
+ {
+  "id": "sv4pt5",
+  "name": "Paldean Fates",
+  "color": "#3a3a8c",
+  "art": "sv4pt5/54",
+  "golden": true
+ },
+ {
+  "id": "sv8pt5",
+  "name": "Prismatic Evolutions",
+  "color": "#d0559a",
+  "art": "sv8pt5/28",
+  "golden": true
+ }
+]

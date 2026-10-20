@@ -4,8 +4,11 @@ import { sfx } from './sfx.js';
 import { PackOverlay } from './overlay.js';
 import { Encounter } from './encounter.js';
 import { drawCard } from './cards.js';
-import { voxelData, buildPack, makeSparkles, animateSparkles } from './voxel.js';
+import { makeSparkles, animateSparkles } from './voxel.js';
+import { buildRealPack } from './pack3d.js';
 import { installTextures, preloadCard, showCard, hideCard, cardImage, TIER_COLOR } from './reveal.js';
+import { CHALLENGES } from './challenges.js';
+import { getSession, connectWallet, disconnectWallet, shortAddr } from './wallet.js';
 
 const $ = (s) => document.querySelector(s);
 const rand = (a) => a[Math.floor(Math.random() * a.length)];
@@ -153,6 +156,8 @@ async function pickSpot() {
 
 async function startHunt(at) {
   sfx.click();
+  S.mode = at.challenge || 'wild';
+  at = { ...at, wallet: getSession()?.session };
   screen('loading');
   $('#loadingText').textContent = 'Looking for a street...';
   const slow = setTimeout(() => ($('#loadingText').textContent = 'Hiding packs nearby...'), 1200);
@@ -174,6 +179,7 @@ async function startHunt(at) {
   S.wasNear = false;
   S.epoch++;
   S.t0 = Date.now() - r.elapsed * 1000;
+  S.wallet = r.wallet;
   $('#hintList').innerHTML = '';
   S.overlay.sync([]);
   // Start on Google's own panorama, not a nearby user photo sphere.
@@ -189,7 +195,8 @@ async function startHunt(at) {
   clearInterval(S.tick);
   S.tick = setInterval(tick, 1000);
   sfx.appear();
-  toast(`${r.total} packs are hidden nearby. Follow the clues to the GOLDEN pack!`, 5000);
+  const ch = CHALLENGES.find((c) => c.id === r.challenge);
+  toast(ch ? `${ch.name}: find the GOLDEN pack in ${fmtTime(r.timeLeft)}!` : `WILD DROP: ${r.total} packs hidden nearby. Find the GOLDEN one!`, 5000);
 }
 
 // ---------- moving ----------
@@ -226,6 +233,8 @@ function apply(r) {
   S.wasNear = r.near;
   renderHints(r.hints, r.level);
   S.nextAt = r.nextIn != null ? Date.now() + r.nextIn * 1000 : 0;
+  S.deadline = r.timeLeft != null ? Date.now() + r.timeLeft * 1000 : 0;
+  if (r.expired && !S.busy) timeUp();
 }
 
 function renderHints(hints, level) {
@@ -245,7 +254,7 @@ function renderHints(hints, level) {
     }
     if (h.radar) {
       const t = h.radar.trend;
-      li.innerHTML = `Radar: ${h.radar.metres}m away ${t === 'warmer' ? '<span class="warm">WARMER!</span>' : t === 'colder' ? '<span class="cold">COLDER...</span>' : ''}`;
+      li.innerHTML = `Radar: ${h.radar.metres != null ? `${h.radar.metres}m away` : 'signal only'} ${t === 'warmer' ? '<span class="warm">WARMER!</span>' : t === 'colder' ? '<span class="cold">COLDER...</span>' : ''}`;
     } else if (fresh && 'photo' in h) {
       if (!h.photo) { li.textContent = 'No photo of this spot, sorry!'; return; }
       li.textContent = 'Postcard from the hiding spot:';
@@ -263,7 +272,16 @@ function renderHints(hints, level) {
 }
 
 function tick() {
-  $('#hudTime').textContent = fmtTime((Date.now() - S.t0) / 1000);
+  const hudTime = $('#hudTime');
+  if (S.deadline) {
+    const left = Math.max(0, Math.ceil((S.deadline - Date.now()) / 1000));
+    hudTime.textContent = fmtTime(left);
+    hudTime.classList.toggle('urgent', left <= 60);
+    if (left <= 0 && !S.busy && !S.done) { S.deadline = 0; sendMove(); return; }
+  } else {
+    hudTime.textContent = fmtTime((Date.now() - S.t0) / 1000);
+    hudTime.classList.remove('urgent');
+  }
   if (!S.nextAt) { $('#hintNext').textContent = ''; return; }
   const left = Math.ceil((S.nextAt - Date.now()) / 1000);
   $('#hintNext').textContent = left > 0 ? `next ${left}s` : 'new clue!';
@@ -285,7 +303,7 @@ async function openEncounter(id) {
   screen('encounter');
   flash('go');
   sfx.encounter();
-  await S.enc.show(pack.gold);
+  await S.enc.show(pack.set, pack.gold);
   say(pack.gold ? 'A legendary GOLDEN PACK appeared!' : 'A wild BOOSTER PACK appeared!', () =>
     actions([
       { label: '▶ RIP IT', cls: pack.gold ? 'gold' : 'primary', fn: startRip },
@@ -321,7 +339,9 @@ async function finishRip() {
   const r = await S.openReq;
   if (r.error) {
     sfx.error();
-    say(r.error, () => actions([{ label: 'BACK', fn: closeEncounter }]));
+    const late = /Time's up/.test(r.error);
+    const back = late ? () => { S.enc.stop(); S.busy = false; timeUp(); } : closeEncounter;
+    say(r.error, () => actions([{ label: late ? 'RESULTS' : 'BACK', fn: back }]));
     return;
   }
   if (r.token) S.token = r.token;
@@ -366,6 +386,8 @@ function showReveal(r) {
   if (gold) {
     S.finishTime = r.finishTime;
     S.finalScore = r.score;
+    S.timeBonus = r.timeBonus;
+    S.recorded = r.recorded;
   }
   const box = $('#revealActions');
   box.innerHTML = '';
@@ -391,8 +413,7 @@ function closeEncounter() {
   if (S.pending) { apply(S.pending); S.pending = null; }
 }
 
-function finish() {
-  sfx.click();
+function endHunt() {
   hideCard();
   S.enc.stop();
   S.busy = false;
@@ -401,17 +422,43 @@ function finish() {
   for (const id of ['#hud', '#hintbox', '#radar']) $(id).hidden = true;
   if (S.pano) S.pano.setVisible(false);
   if (S.overlay) S.overlay.sync([]);
+}
+
+function walletLine(recorded) {
+  if (recorded) return `Score recorded for ${shortAddr(S.wallet)} on this week's leaderboard.`;
+  if (S.wallet) return "The leaderboard isn't live yet, so this score wasn't recorded.";
+  return 'Connect a Solana wallet to record scores and compete for weekly rewards.';
+}
+
+function finish() {
+  sfx.click();
+  endHunt();
   const t = S.finishTime ?? Math.floor((Date.now() - S.t0) / 1000);
   const found = S.pending ? `${S.pending.found}/${S.pending.total}` : '';
   S.pending = null;
-  $('#resStats').innerHTML = `Time ${fmtTime(t)}<br>Packs ${found}<br>Score ${S.finalScore ?? 0}`;
-  const best = store.get('packhunt_best', null);
+  $('#resTitle').textContent = 'HUNT COMPLETE!';
+  $('#resStats').innerHTML = `Time ${fmtTime(t)}<br>Packs ${found}<br>Time bonus +${S.timeBonus || 0}<br>Score ${S.finalScore ?? 0}`;
+  const key = `packhunt_best_${S.mode || 'wild'}`;
+  const best = store.get(key, null);
   if (!S.demo && (best == null || t < best)) {
-    store.set('packhunt_best', t);
+    store.set(key, t);
     $('#resBest').textContent = 'NEW BEST TIME!';
   } else {
     $('#resBest').textContent = best != null ? `Best time ${fmtTime(best)}` : '';
   }
+  $('#resWallet').textContent = walletLine(S.recorded);
+  screen('results');
+}
+
+function timeUp() {
+  if (S.done) return;
+  sfx.error();
+  endHunt();
+  const d = S.data || {};
+  $('#resTitle').textContent = "TIME'S UP!";
+  $('#resStats').innerHTML = `The Golden pack got away.<br>Packs ${d.found ?? 0}/${d.total ?? 0}<br>Score ${d.score ?? 0}`;
+  $('#resBest').textContent = '';
+  $('#resWallet').textContent = 'Only finished hunts count on the leaderboard.';
   screen('results');
 }
 
@@ -468,8 +515,13 @@ function viewCard(card) {
 function refreshTitle() {
   const bag = store.get('packhunt_bag', []);
   $('#bagCount').textContent = bag.length ? `(${bag.length})` : '';
-  const best = store.get('packhunt_best', null);
-  $('#bestLine').textContent = best != null ? `Best Golden time: ${fmtTime(best)}` : '';
+  const best = store.get('packhunt_best_wild', null);
+  $('#bestLine').textContent = best != null ? `Best wild drop: ${fmtTime(best)}` : '';
+  const w = getSession();
+  for (const b of [$('#walletBtn'), $('#boardWallet')]) {
+    b.textContent = w ? `WALLET ${shortAddr(w.wallet)}  (DISCONNECT)` : 'CONNECT SOLANA WALLET';
+    b.classList.toggle('connected', Boolean(w));
+  }
 }
 
 // Spinning 3D golden pack on the title screen.
@@ -479,13 +531,13 @@ async function titlePack() {
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   host.appendChild(renderer.domElement);
   const scene = new THREE.Scene();
-  scene.add(new THREE.AmbientLight(0xffffff, 1.6));
-  const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+  scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+  const sun = new THREE.DirectionalLight(0xffffff, 2.2);
   sun.position.set(2, 3, 4);
   scene.add(sun);
   const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 50);
   camera.position.set(0, 0, 6);
-  const pack = buildPack(await voxelData('assets/pack_gold.png'), { height: 2.2, depth: 4 });
+  const pack = await buildRealPack('sv3pt5', true, { height: 2.4 });
   const sparkles = makeSparkles(true, 14);
   sparkles.scale.setScalar(1.7);
   scene.add(pack, sparkles);
@@ -510,7 +562,7 @@ async function titlePack() {
 async function demoCard(gold) {
   const tier = gold ? 'GOLDEN' : rand(['COMMON', 'UNCOMMON', 'RARE', 'HOLO', 'HOLO']);
   try {
-    const { card } = await (await fetch(`/api/card?tier=${tier}`)).json();
+    const { card } = await (await fetch(`/api/card?tier=${tier}&set=${S.cur.set}`)).json();
     return { card, bonusHint: !gold, foundAt: { place: 'Demo Street, Pallet Town', at: Date.now(), photo: null } };
   } catch {
     return { error: 'Could not reach the server.' };
@@ -520,9 +572,66 @@ async function demoCard(gold) {
 function demoEncounter() {
   S.demoCount = (S.demoCount || 0) + 1;
   const gold = new URLSearchParams(location.search).get('demo') === 'gold' || S.demoCount % 4 === 0;
-  S.data = { visible: [{ id: S.demoCount, gold }] };
+  const set = gold ? rand(['sv3pt5', 'swsh7', 'sv8pt5', 'sv4pt5']) : rand(['base1', 'base2', 'base3', 'sv3pt5', 'swsh7', 'swsh12pt5', 'sv4pt5', 'sv8pt5']);
+  S.data = { visible: [{ id: S.demoCount, gold, set }] };
   S.busy = false;
   openEncounter(S.demoCount);
+}
+
+// ---------- challenges ----------
+function openChallenges() {
+  sfx.click();
+  const list = $('#challengeList');
+  list.innerHTML = '';
+  for (const c of CHALLENGES) {
+    const b = document.createElement('button');
+    b.className = 'challenge';
+    const best = store.get(`packhunt_best_${c.id}`, null);
+    b.innerHTML = '<span class="c-name"></span><span class="c-place"></span><span class="c-blurb"></span>' +
+      '<span class="c-foot"><span class="c-stars"></span><span class="c-best"></span></span>';
+    b.querySelector('.c-name').textContent = c.name;
+    b.querySelector('.c-place').textContent = c.place;
+    b.querySelector('.c-blurb').textContent = c.blurb;
+    b.querySelector('.c-stars').textContent = `${'\u2605'.repeat(c.stars)}${'\u2606'.repeat(3 - c.stars)}`;
+    b.querySelector('.c-best').textContent = best != null ? `BEST ${fmtTime(best)}` : '';
+    b.onclick = () => startHunt({ challenge: c.id });
+    list.appendChild(b);
+  }
+  screen('challenges');
+}
+
+// ---------- wallet + leaderboard ----------
+async function toggleWallet() {
+  sfx.click();
+  if (getSession()) {
+    disconnectWallet();
+    toast('Wallet disconnected.');
+  } else {
+    const r = await connectWallet();
+    if (r.error) { sfx.error(); toast(r.error, 5000); }
+    else if (!r.pending) { sfx.hint(); toast(`Wallet ${shortAddr(r.wallet)} connected. Finished hunts now count!`); }
+  }
+  refreshTitle();
+  if (!$('#board').hidden) openBoard(true);
+}
+
+async function openBoard(quiet) {
+  if (!quiet) sfx.click();
+  screen('board');
+  const list = $('#boardList');
+  list.innerHTML = '<li>Loading...</li>';
+  let r;
+  try { r = await (await fetch('/api/leaderboard')).json(); } catch { r = { enabled: false, top: [] }; }
+  $('#boardWeek').textContent = r.enabled ? `Week ${r.week}` : 'The leaderboard opens soon.';
+  list.innerHTML = '';
+  const me = getSession()?.wallet;
+  if (r.enabled && !r.top.length) list.innerHTML = '<li>No finished hunts yet this week. Be the first!</li>';
+  for (const row of r.top) {
+    const li = document.createElement('li');
+    li.textContent = `${shortAddr(row.wallet)}  ${row.score} pts`;
+    if (row.wallet === me) li.className = 'me';
+    list.appendChild(li);
+  }
 }
 
 // ---------- boot ----------
@@ -532,6 +641,12 @@ async function boot() {
   S.enc = new Encounter($('#encStage'));
   $('#encStage').addEventListener('pointerdown', tapPack);
   $('#randomBtn').onclick = randomDrop;
+  $('#challengesBtn').onclick = openChallenges;
+  $('#challengesClose').onclick = () => { sfx.click(); screen('title'); };
+  $('#boardBtn').onclick = () => openBoard();
+  $('#boardClose').onclick = () => { sfx.click(); screen('title'); };
+  $('#walletBtn').onclick = toggleWallet;
+  $('#boardWallet').onclick = toggleWallet;
   $('#pickBtn').onclick = pickSpot;
   $('#pickBack').onclick = () => screen('title');
   $('#bagBtn').onclick = openBag;

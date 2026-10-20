@@ -1,6 +1,7 @@
 // The 3D "wild pack appeared" scene: the pack drops in, shakes, rips open and a card flips out.
 import * as THREE from 'three';
-import { voxelData, buildPack, makeSparkles, animateSparkles } from './voxel.js';
+import { makeSparkles, animateSparkles } from './voxel.js';
+import { buildRealPack } from './pack3d.js';
 import { drawCard, drawCardBack, RARITY } from './cards.js';
 
 const easeOutBack = (p) => 1 + 2.7 * (p - 1) ** 3 + 1.7 * (p - 1) ** 2;
@@ -76,8 +77,8 @@ export class Encounter {
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     host.appendChild(this.renderer.domElement);
     this.scene = new THREE.Scene();
-    this.scene.add(new THREE.AmbientLight(0xffffff, 1.5));
-    const key = new THREE.DirectionalLight(0xffffff, 1.8);
+    this.scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+    const key = new THREE.DirectionalLight(0xffffff, 2.2);
     key.position.set(2, 3, 4);
     this.scene.add(key);
     this.camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
@@ -133,11 +134,10 @@ export class Encounter {
     this.pack = this.card = this.sparkles = null;
   }
 
-  async show(gold) {
+  async show(setId, gold) {
     this.clear();
     this.start();
-    const data = await voxelData(gold ? 'assets/pack_gold.png' : 'assets/pack.png');
-    this.pack = buildPack(data, { height: 2.4, depth: 4, split: 0.17 });
+    this.pack = await buildRealPack(setId, gold, { height: 2.7 });
     this.pack.position.y = 6;
     this.root.add(this.pack);
     this.sparkles = makeSparkles(gold, gold ? 22 : 12);
@@ -168,7 +168,8 @@ export class Encounter {
     const { top, body } = pack.userData;
     const color = RARITY[card.rarity]?.border || '#ffffff';
     this.burst([color, '#ffffff', '#f8d030'], new THREE.Vector3(0, pack.position.y + 1, 0.3), card.rarity === 'GOLDEN' ? 1.5 : 1);
-    if (top) this.tween(800, (p) => { top.position.set(p * 2.2, p * 3.5 - p * p * 1.5, p); top.rotation.z = -p * 5; });
+    const ty = top.position.y;
+    this.tween(800, (p) => { top.position.set(p * 2.2, ty + p * 3.5 - p * p * 1.5, p); top.rotation.z = -p * 5; });
     this.tween(650, (p) => { body.position.y = -p * 4; body.scale.setScalar(1 - p * 0.5); }, 120);
 
     // Real cards are revealed by the DOM card screen instead of a 3D card.

@@ -87,6 +87,60 @@ export async function admit(ip) {
   }
 }
 
+// ---------- weekly leaderboard (wallet -> total score from finished hunts) ----------
+export function weekKey(d = new Date()) {
+  const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const day = t.getUTCDay() || 7;
+  t.setUTCDate(t.getUTCDate() + 4 - day);
+  const week = Math.ceil(((t - Date.UTC(t.getUTCFullYear(), 0, 1)) / 86400000 + 1) / 7);
+  return `${t.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+}
+
+export async function recordScore(wallet, score) {
+  if (!HAS_REDIS) return false;
+  try {
+    await redis('ZINCRBY', `lb:${weekKey()}`, score, wallet);
+    await redis('ZINCRBY', 'lb:all', score, wallet);
+    await redis('HINCRBY', `hunts:${weekKey()}`, wallet, 1);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function topScores(key, n = 25) {
+  const flat = await redis('ZREVRANGE', key, 0, n - 1, 'WITHSCORES');
+  const out = [];
+  for (let i = 0; i < flat.length; i += 2) out.push({ wallet: flat[i], score: Number(flat[i + 1]) });
+  return out;
+}
+
+// ---------- Solana wallet sign-in (ed25519 signature over a short message) ----------
+const B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+export function base58(str) {
+  let n = 0n;
+  for (const ch of String(str)) {
+    const v = B58.indexOf(ch);
+    if (v < 0) return null;
+    n = n * 58n + BigInt(v);
+  }
+  const bytes = [];
+  while (n > 0n) { bytes.unshift(Number(n & 255n)); n >>= 8n; }
+  for (const ch of String(str)) { if (ch !== '1') break; bytes.unshift(0); }
+  return Buffer.from(bytes);
+}
+
+export function verifySolana(address, message, signatureB64) {
+  try {
+    const pub = base58(address);
+    if (!pub || pub.length !== 32) return false;
+    const key = crypto.createPublicKey({ key: { kty: 'OKP', crv: 'Ed25519', x: pub.toString('base64url') }, format: 'jwk' });
+    return crypto.verify(null, Buffer.from(message, 'utf8'), key, Buffer.from(signatureB64, 'base64'));
+  } catch {
+    return false;
+  }
+}
+
 export function clientIp(req) {
   const fwd = req.headers['x-forwarded-for'];
   return (fwd ? String(fwd).split(',')[0] : req.socket?.remoteAddress || 'local').trim();

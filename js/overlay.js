@@ -2,7 +2,8 @@
 // on top of the panorama and its camera copies the panorama's heading, pitch and zoom.
 import * as THREE from 'three';
 import { dist, bearing } from './geo.js';
-import { voxelData, buildPack, makeBeam, makeShadow, makeSparkles, animateSparkles } from './voxel.js';
+import { makeBeam, makeShadow, makeSparkles, animateSparkles } from './voxel.js';
+import { buildRealPack } from './pack3d.js';
 
 const CAMERA_HEIGHT = 2.5; // Street View cameras sit roughly 2.5 m above the road
 
@@ -19,8 +20,8 @@ export class PackOverlay {
     stage.appendChild(this.renderer.domElement);
 
     this.scene = new THREE.Scene();
-    this.scene.add(new THREE.AmbientLight(0xffffff, 1.7));
-    const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+    this.scene.add(new THREE.AmbientLight(0xffffff, 1.3));
+    const sun = new THREE.DirectionalLight(0xffffff, 2);
     sun.position.set(1, 2, 1.5);
     this.scene.add(sun);
 
@@ -66,10 +67,10 @@ export class PackOverlay {
       hit.userData.id = p.id;
       it.hit = hit;
       it.root.add(hit);
-      voxelData(p.gold ? 'assets/pack_gold.png' : 'assets/pack.png').then((data) => {
+      buildRealPack(p.set, p.gold, { height: 1.3 }).then((model) => {
         if (!this.items.has(p.id)) return;
-        it.model = buildPack(data, { height: 1.2 });
-        it.root.add(it.model);
+        it.model = model;
+        it.root.add(model);
       });
     }
     return added;
