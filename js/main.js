@@ -8,6 +8,7 @@ import { makeSparkles, animateSparkles } from './voxel.js';
 import { buildRealPack } from './pack3d.js';
 import { installTextures, installInspector, preloadCard, showCard, hideCard, cardImage, TIER_COLOR } from './reveal.js';
 import { CHALLENGES } from './challenges.js';
+import { offset } from './geo.js';
 import { getSession, connectWallet, disconnectWallet, shortAddr } from './wallet.js';
 
 const $ = (s) => document.querySelector(s);
@@ -131,6 +132,7 @@ function ensurePano() {
     linksControl: true,
   });
   S.pano.addListener('position_changed', onMove);
+  S.pano.addListener('position_changed', () => { if (S.hero?.on) placeHeroPacks(); });
   S.overlay = new PackOverlay($('#stage'), S.pano, openEncounter);
 }
 
@@ -172,6 +174,7 @@ async function startHunt(at) {
   if (r.error) { sfx.error(); toast(r.error); screen('title'); return; }
 
   ensurePano();
+  heroStop();
   S.token = r.token;
   S.done = false;
   S.busy = false;
@@ -465,6 +468,7 @@ function timeUp() {
 function quit() {
   S.done = true;
   S.token = null;
+  setTimeout(heroResume, 50);
   clearInterval(S.tick);
   for (const id of ['#hud', '#hintbox', '#radar']) $(id).hidden = true;
   if (S.pano) S.pano.setVisible(false);
@@ -578,6 +582,81 @@ function demoEncounter() {
   openEncounter(S.demoCount);
 }
 
+// ---------- live Street View loop behind the title screen ----------
+// Reuses the game's one panorama, so it adds no extra Street View loads when a hunt starts.
+const HERO_STAY = 18000;
+
+async function startHeroView() {
+  if (!S.cfg.browserKey || S.demo) return;
+  try { await loadMaps(); } catch { return; }
+  let spots = [];
+  try { spots = await (await fetch('/api/hero')).json(); } catch {}
+  if (!spots.length) return;
+  ensurePano();
+  S.hero = { spots, i: Math.floor(Math.random() * spots.length), on: false };
+  heroResume();
+}
+
+function heroResume() {
+  if (!S.hero || S.token) return;
+  S.hero.on = true;
+  S.pano.setOptions({ linksControl: false, clickToGo: false });
+  heroGo(S.hero.i);
+  requestAnimationFrame(heroSpin);
+}
+
+function heroStop() {
+  if (!S.hero?.on) return;
+  S.hero.on = false;
+  $('#heroTag').hidden = true;
+  S.overlay.sync([]);
+  S.pano.setOptions({ linksControl: true, clickToGo: true });
+  $('#stage').classList.remove('fading');
+}
+
+function heroGo(i) {
+  const h = S.hero;
+  h.i = i % h.spots.length;
+  const spot = h.spots[h.i];
+  $('#stage').classList.add('fading');
+  setTimeout(() => {
+    if (!h.on) return;
+    S.overlay.sync([]);
+    S.pano.setPano(spot.pano);
+    S.pano.setPov({ heading: spot.heading, pitch: 4 });
+    S.pano.setZoom(1);
+    S.pano.setVisible(true);
+    h.since = performance.now();
+    $('#heroPlace').textContent = spot.name;
+    $('#heroTag').hidden = false;
+    setTimeout(() => h.on && $('#stage').classList.remove('fading'), 700);
+  }, 600);
+}
+
+// A few packs floating just ahead of the camera, one of them golden.
+function placeHeroPacks() {
+  const pos = S.pano.getPosition();
+  if (!pos) return;
+  const here = { lat: pos.lat(), lng: pos.lng() };
+  const ahead = S.hero.spots[S.hero.i].heading;
+  const sets = ['sv3pt5', 'swsh7', 'sv8pt5', 'base1', 'sv4pt5', 'swsh12pt5'];
+  const packs = [[-28, 11], [6, 17], [38, 13], [180, 15]].map(([turn, metres], k) => ({
+    id: -1 - k, gold: k === 1, set: rand(sets), ...offset(here, metres, ahead + turn),
+  }));
+  S.overlay.sync(packs);
+  $('#heroCount').textContent = `${packs.length} PACKS NEARBY`;
+}
+
+function heroSpin(t) {
+  const h = S.hero;
+  if (!h?.on) return;
+  requestAnimationFrame(heroSpin);
+  if (!h.since || $('#stage').classList.contains('fading')) return;
+  const pov = S.pano.getPov();
+  S.pano.setPov({ heading: pov.heading + 0.035, pitch: 4 + Math.sin(t / 5000) * 2 });
+  if (t - h.since > HERO_STAY) { h.since = 0; heroGo(h.i + 1); }
+}
+
 // ---------- challenges ----------
 function openChallenges() {
   sfx.click();
@@ -654,7 +733,7 @@ async function boot() {
   $('#hudBag').onclick = openBag;
   $('#resBag').onclick = openBag;
   $('#bagClose').onclick = () => { sfx.click(); refreshTitle(); screen(S.bagFrom); };
-  $('#againBtn').onclick = () => { refreshTitle(); screen('title'); };
+  $('#againBtn').onclick = () => { S.token = null; refreshTitle(); screen('title'); heroResume(); };
   $('#hudQuit').onclick = () => { if (confirm('Quit this hunt?')) quit(); };
   $('#hintHead').onclick = () => $('#hintbox').classList.toggle('collapsed');
   const snd = $('#hudSound');
@@ -667,6 +746,7 @@ async function boot() {
   if (S.demo) { demoEncounter(); return; }
   try { S.cfg = await (await fetch('/api/config')).json(); } catch { S.cfg = {}; }
   if (!S.cfg.browserKey) { $('#menu').hidden = true; $('#setup').hidden = false; }
+  startHeroView();
 }
 
 if (location.hostname === 'localhost') window.__packhunt = S; // dev-only handle for testing

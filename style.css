@@ -49,15 +49,35 @@ body {
 }
 
 /* Title */
-#title { background: radial-gradient(circle at 50% 30%, #2a4478, #1b2a4a 70%); }
-.title-wrap { width: 100%; max-width: 380px; text-align: center; }
+#title { background: transparent; overflow: hidden; }
+#title::after {
+  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background: linear-gradient(rgba(10, 16, 32, .35), rgba(10, 16, 32, .15) 30%, rgba(10, 16, 32, .25) 65%, rgba(10, 16, 32, .75)),
+    radial-gradient(ellipse 36% 70% at 50% 55%, rgba(10, 16, 32, .5), transparent);
+}
+#stage { transition: opacity .6s ease; background: #1b2a4a; }
+#stage.fading #pano, #stage.fading .overlay3d { opacity: 0; transition: opacity .6s ease; }
+#stage #pano, #stage .overlay3d { transition: opacity .7s ease; }
+.hero-tag {
+  position: absolute; left: 16px; bottom: 28px; z-index: 1; display: flex; flex-direction: column; gap: 6px;
+  background: rgba(16, 24, 48, .82); border: 3px solid #f8f8f8; border-radius: 6px; padding: 10px 12px;
+  color: #f8f8f8; font-size: 9px; line-height: 1.4; text-align: left;
+}
+.hero-live { color: #ff6050; display: flex; align-items: center; gap: 6px; }
+.hero-live::before { content: ""; width: 8px; height: 8px; background: #ff3b30; border-radius: 50%; animation: pulse 1s infinite; }
+#heroCount { color: #f8c830; }
+@media (max-width: 760px) { .hero-tag { left: 50%; transform: translateX(-50%); bottom: 12px; white-space: nowrap; } }
+.title-wrap { position: relative; z-index: 1; width: 100%; max-width: 380px; text-align: center; }
 .title-pack { height: 150px; margin-bottom: -10px; }
 .title-pack canvas { width: 100% !important; height: 100% !important; }
 .big-logo {
   font-size: 44px; line-height: 1.15; color: #f8c830; letter-spacing: 2px;
   text-shadow: 4px 0 #2850a8, -4px 0 #2850a8, 0 4px #2850a8, 0 -4px #2850a8, 6px 8px 0 #101828;
 }
-.tag { color: #c8d8f0; font-size: 9px; line-height: 1.9; margin: 20px 0 22px; }
+.tag {
+  color: #f8f8f8; font-size: 9px; line-height: 1.9; margin: 18px 0 20px; padding: 10px 12px;
+  background: rgba(16, 24, 48, .78); border: 3px solid #303848; border-radius: 6px;
+}
 .menu { display: flex; flex-direction: column; gap: 12px; text-align: left; }
 .menu .muted { text-align: center; }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }

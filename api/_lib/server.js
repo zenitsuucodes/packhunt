@@ -30,22 +30,28 @@ export const SERVER_KEY = process.env.MAPS_SERVER_KEY || process.env.MAPS_BROWSE
 export const MOCK = !SERVER_KEY;
 export const googleHeaders = { Referer: process.env.SITE_URL || 'http://localhost:5200/' };
 
-// Snap a point to the nearest outdoor, Google-made Street View panorama.
-export async function snap(p, radius) {
-  if (MOCK) return { lat: p.lat, lng: p.lng, pano: null };
+export async function metadata(p, radius, source) {
   const u = new URL('https://maps.googleapis.com/maps/api/streetview/metadata');
-  u.search = new URLSearchParams({
-    location: `${p.lat},${p.lng}`, radius: String(radius), source: 'google', key: SERVER_KEY,
-  });
+  u.search = new URLSearchParams({ location: `${p.lat},${p.lng}`, radius: String(radius), source, key: SERVER_KEY });
   try {
     const r = await fetch(u, { headers: googleHeaders, signal: AbortSignal.timeout(5000) });
     const j = await r.json();
-    if (j.status !== 'OK' || !j.location) return null;
-    if (j.copyright && !/google/i.test(j.copyright)) return null; // skip user photospheres
-    return { lat: j.location.lat, lng: j.location.lng, pano: j.pano_id };
+    return j.status === 'OK' && j.location ? j : null;
   } catch {
     return null;
   }
+}
+
+// Snap a point to the nearest outdoor, Google-made Street View panorama.
+// "outdoor" skips indoor spots like stations but can return fan photo spheres;
+// "google" skips fan photos but can return indoor spots. Prefer a result that is both.
+export async function snap(p, radius) {
+  if (MOCK) return { lat: p.lat, lng: p.lng, pano: null };
+  const isGoogle = (j) => j && (!j.copyright || /google/i.test(j.copyright));
+  let j = await metadata(p, radius, 'outdoor');
+  if (!isGoogle(j)) j = await metadata(p, radius, 'google');
+  if (!isGoogle(j)) return null;
+  return { lat: j.location.lat, lng: j.location.lng, pano: j.pano_id };
 }
 
 // ---------- Upstash Redis (REST) ----------
