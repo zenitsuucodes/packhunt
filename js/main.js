@@ -151,9 +151,48 @@ async function pickSpot() {
   if (S.pick) return;
   S.pick = new google.maps.Map($('#pickmap'), {
     center: { lat: 25, lng: 10 }, zoom: 2, streetViewControl: false, mapTypeControl: false,
-    fullscreenControl: false, clickableIcons: false,
+    fullscreenControl: false, clickableIcons: false, gestureHandling: 'greedy',
   });
-  S.pick.addListener('click', (e) => startHunt(e.latLng.toJSON()));
+  new google.maps.StreetViewCoverageLayer().setMap(S.pick); // blue lines = Street View
+  S.pickMarker = new google.maps.Marker({ map: S.pick, visible: false });
+  S.pick.addListener('click', (e) => choosePick(e.latLng.toJSON()));
+}
+
+// Tapping the map (or a search result) places a pin; DROP HERE starts the hunt.
+function choosePick(at, label) {
+  sfx.click();
+  S.pickAt = at;
+  S.pickMarker.setPosition(at);
+  S.pickMarker.setVisible(true);
+  $('#pickHint').textContent = label || `Drop at ${at.lat.toFixed(4)}, ${at.lng.toFixed(4)}?`;
+  $('#pickDrop').hidden = false;
+}
+
+async function searchPlaces(e) {
+  e.preventDefault();
+  const q = $('#pickQuery').value.trim();
+  const list = $('#pickResults');
+  if (!q) return;
+  list.hidden = false;
+  list.innerHTML = '<li class="muted">Searching...</li>';
+  let results = [];
+  try { results = await (await fetch(`/api/search?q=${encodeURIComponent(q)}`)).json(); } catch {}
+  list.innerHTML = '';
+  if (!results.length) { list.innerHTML = '<li class="muted">No places found. Try another name.</li>'; return; }
+  for (const r of results) {
+    const li = document.createElement('li');
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = r.name;
+    b.onclick = () => {
+      list.hidden = true;
+      S.pick.setCenter(r);
+      S.pick.setZoom(16);
+      choosePick({ lat: r.lat, lng: r.lng }, r.name.split(',').slice(0, 2).join(','));
+    };
+    li.appendChild(b);
+    list.appendChild(li);
+  }
 }
 
 async function startHunt(at) {
@@ -729,6 +768,8 @@ async function boot() {
   $('#boardWallet').onclick = toggleWallet;
   $('#pickBtn').onclick = pickSpot;
   $('#pickBack').onclick = () => screen('title');
+  $('#pickForm').onsubmit = searchPlaces;
+  $('#pickDrop').onclick = () => S.pickAt && startHunt(S.pickAt);
   $('#bagBtn').onclick = openBag;
   $('#hudBag').onclick = openBag;
   $('#resBag').onclick = openBag;

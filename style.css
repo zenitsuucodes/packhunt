@@ -108,7 +108,21 @@ body {
 /* Picker */
 #picker { padding: 0; align-items: flex-end; }
 #pickmap { position: absolute; inset: 0; }
-.picker-bar { position: relative; margin: 16px; display: flex; gap: 12px; align-items: center; justify-content: space-between; width: calc(100% - 32px); max-width: 520px; }
+.picker-bar { position: relative; margin: 16px; display: flex; gap: 12px; align-items: center; justify-content: space-between; width: calc(100% - 32px); max-width: 560px; font-size: 9px; }
+.pick-row { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+.pick-search {
+  position: absolute; top: 16px; left: 50%; transform: translateX(-50%); z-index: 1;
+  width: calc(100% - 32px); max-width: 560px; padding: 10px;
+}
+.pick-search .pick-row { width: 100%; }
+#pickQuery { flex: 1; min-width: 0; font: inherit; font-size: 10px; padding: 10px; border: 3px solid #303848; border-radius: 6px; }
+#pickResults { list-style: none; padding: 0; margin: 8px 0 0; display: flex; flex-direction: column; gap: 4px; max-height: 40vh; overflow-y: auto; }
+#pickResults button {
+  width: 100%; text-align: left; font: inherit; font-size: 8px; line-height: 1.6; padding: 8px;
+  background: #fff; border: 2px solid #a8b8c8; border-radius: 4px; cursor: pointer; color: #283040;
+}
+#pickResults button:hover { border-color: #303848; background: #f0f4fa; }
+@media (max-width: 560px) { .picker-bar { flex-direction: column; align-items: stretch; } .picker-bar .pick-row { justify-content: space-between; } }
 
 #loading { background: rgba(16, 24, 40, .88); }
 .loading-box { display: flex; align-items: center; gap: 14px; }

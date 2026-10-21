@@ -50,7 +50,7 @@
       <button class="btn primary" id="challengesBtn">&#9654; CHALLENGES</button>
       <div class="row2">
         <button class="btn" id="randomBtn">WILD DROP</button>
-        <button class="btn" id="pickBtn">PICK A SPOT</button>
+        <button class="btn" id="pickBtn">DROP ANYWHERE</button>
       </div>
       <div class="row2">
         <button class="btn" id="bagBtn">MY BAG <span id="bagCount"></span></button>
@@ -90,9 +90,19 @@
 
 <section id="picker" class="screen" hidden>
   <div id="pickmap"></div>
+  <div class="pick-search dialog">
+    <form id="pickForm" class="pick-row">
+      <input id="pickQuery" type="search" placeholder="Search a city, landmark or address" autocomplete="off" enterkeyhint="search">
+      <button class="btn small primary" type="submit">GO</button>
+    </form>
+    <ul id="pickResults" hidden></ul>
+  </div>
   <div class="dialog picker-bar">
-    <span>Tap anywhere on Earth to drop in.</span>
-    <button class="btn small" id="pickBack">BACK</button>
+    <span id="pickHint">Search, or tap anywhere on the map. Blue lines have Street View.</span>
+    <div class="pick-row">
+      <button class="btn small" id="pickBack">BACK</button>
+      <button class="btn small gold" id="pickDrop" hidden>&#9654; DROP HERE</button>
+    </div>
   </div>
 </section>
 
