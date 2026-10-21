@@ -152,6 +152,39 @@ export function clientIp(req) {
   return (fwd ? String(fwd).split(',')[0] : req.socket?.remoteAddress || 'local').trim();
 }
 
+// ---------- Google Places nearby search (used to theme drop-anywhere challenges) ----------
+export async function placesNearby(p, radius, max = 20) {
+  if (MOCK) return [];
+  try {
+    const r = await fetch('https://places.googleapis.com/v1/places:searchNearby', {
+      method: 'POST',
+      headers: {
+        ...googleHeaders,
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': SERVER_KEY,
+        'X-Goog-FieldMask': 'places.displayName,places.primaryType,places.primaryTypeDisplayName,places.location,places.userRatingCount',
+      },
+      body: JSON.stringify({
+        maxResultCount: max,
+        rankPreference: 'POPULARITY',
+        locationRestriction: { circle: { center: { latitude: p.lat, longitude: p.lng }, radius } },
+      }),
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!r.ok) return [];
+    return ((await r.json()).places || []).map((x) => ({
+      name: x.displayName?.text,
+      type: x.primaryType || '',
+      kind: (x.primaryTypeDisplayName?.text || '').toLowerCase(),
+      lat: x.location?.latitude,
+      lng: x.location?.longitude,
+      reviews: x.userRatingCount || 0,
+    })).filter((x) => x.name && x.lat != null);
+  } catch {
+    return [];
+  }
+}
+
 // ---------- "found at" place names (one lookup per opened pack) ----------
 export async function placeName(p) {
   const u = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${p.lat}&lon=${p.lng}&zoom=17&accept-language=en`;

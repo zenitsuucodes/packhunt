@@ -86,6 +86,7 @@ export function view(st, pos, now) {
       icon: 'pin',
       text: !r.landmark ? 'The locals keep quiet here. No landmark clue in this challenge.'
         : !st.lm ? 'No famous landmarks around it. Keep your eyes peeled!'
+          : st.lm.d ? `It's about ${st.lm.d}m from ${st.lm.kind === 'place' ? '' : `the ${st.lm.kind} `}"${st.lm.name}".`
           : st.lm.kind ? `It's within 100m of a ${st.lm.kind} called "${st.lm.name}".`
             : `It's within 150m of "${st.lm.name}".`,
     });

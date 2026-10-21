@@ -3,6 +3,7 @@ import { dist, offset } from '../js/geo.js';
 import { CHALLENGES, WILD_RULES, rulesFor } from '../js/challenges.js';
 import { seal, unseal, snap, admit, clientIp, landmarks } from './_lib/server.js';
 import { view, validPos, pickSet } from './_lib/game.js';
+import { customChallenge } from './_lib/custom.js';
 
 // Up to `count` Street View spots between min and max metres from start.
 async function findSpots(start, count, min, max, avoid) {
@@ -26,7 +27,7 @@ export default async function handler(req, res) {
   if (req.body?.challenge && !challenge) return res.status(400).json({ error: 'Unknown challenge.' });
   const at = challenge ? { lat: challenge.lat, lng: challenge.lng } : validPos(req.body);
   if (!at) return res.status(400).json({ error: 'Bad location.' });
-  const rules = challenge ? rulesFor(challenge.id) : WILD_RULES;
+  let rules = challenge ? rulesFor(challenge.id) : WILD_RULES;
 
   const gate = await admit(clientIp(req));
   if (!gate.ok) return res.status(429).json({ error: gate.reason });
@@ -38,7 +39,12 @@ export default async function handler(req, res) {
   if (!goldSpot) return res.status(422).json({ error: 'Not enough streets here to hide packs. Try somewhere busier!' });
   const normals = await findSpots(start, rules.normals, 60, rules.gmax * 0.8, [start, goldSpot]);
   const spots = [goldSpot, ...normals];
-  const { street, landmark } = await landmarks(goldSpot);
+  // Drop-anywhere hunts get a challenge themed on what's actually around the drop.
+  const [{ street, landmark }, custom] = await Promise.all([
+    landmarks(goldSpot),
+    challenge ? null : customChallenge(start, goldSpot),
+  ]);
+  if (custom) rules = { ...rules, limit: custom.limit };
 
   const now = Date.now();
   const packs = spots.map((s, i) => {
@@ -60,7 +66,7 @@ export default async function handler(req, res) {
     hb: 0,
     gd: null,
     sc: 0,
-    lm: landmark,
+    lm: custom?.clue || landmark,
     sn: street,
     ph: goldSpot.pano ? seal({ pano: goldSpot.pano, from: goldSpot, to: { lat: gold.lat, lng: gold.lng } }) : null,
     done: 0,
@@ -68,6 +74,8 @@ export default async function handler(req, res) {
   const v = view(st, start, now);
   st.gd = v.goldDist;
   return res.status(200).json({
-    token: seal(st), start: { ...st.s, pano: start.pano }, challenge: challenge?.id || null, wallet: st.w, ...v,
+    token: seal(st), start: { ...st.s, pano: start.pano }, challenge: challenge?.id || null,
+    custom: custom && { name: custom.name, place: custom.place, blurb: custom.blurb, stars: custom.stars, famous: custom.famous },
+    wallet: st.w, ...v,
   });
 }

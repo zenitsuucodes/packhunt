@@ -237,8 +237,23 @@ async function startHunt(at) {
   clearInterval(S.tick);
   S.tick = setInterval(tick, 1000);
   sfx.appear();
-  const ch = CHALLENGES.find((c) => c.id === r.challenge);
-  toast(ch ? `${ch.name}: find the GOLDEN pack in ${fmtTime(r.timeLeft)}!` : `WILD DROP: ${r.total} packs hidden nearby. Find the GOLDEN one!`, 5000);
+  showIntro(r);
+}
+
+// Challenge card shown on landing: a preset famous spot, or one generated from the drop location.
+function showIntro(r) {
+  const ch = CHALLENGES.find((c) => c.id === r.challenge) || r.custom;
+  if (!ch) return;
+  $('#introLabel').textContent = r.custom ? 'CHALLENGE GENERATED FOR THIS SPOT' : 'CHALLENGE';
+  $('#introName').textContent = ch.name;
+  $('#introPlace').textContent = ch.place;
+  $('#introStars').textContent = `${'★'.repeat(ch.stars)}${'☆'.repeat(3 - ch.stars)}`;
+  $('#introBlurb').textContent = ch.blurb;
+  const extra = r.custom?.famous ? `  ·  Nearby: ${r.custom.famous}` : '';
+  $('#introMeta').textContent = `${r.total} packs  ·  ${r.timeLeft ? `${fmtTime(r.timeLeft)} to find the GOLDEN pack` : 'No time limit'}${extra}`;
+  $('#intro').hidden = false;
+  clearTimeout(S.introTimer);
+  S.introTimer = setTimeout(() => ($('#intro').hidden = true), 9000);
 }
 
 // ---------- moving ----------
@@ -461,7 +476,7 @@ function endHunt() {
   S.busy = false;
   S.done = true;
   clearInterval(S.tick);
-  for (const id of ['#hud', '#hintbox', '#radar']) $(id).hidden = true;
+  for (const id of ['#hud', '#hintbox', '#radar', '#intro']) $(id).hidden = true;
   if (S.pano) S.pano.setVisible(false);
   if (S.overlay) S.overlay.sync([]);
 }
@@ -509,7 +524,7 @@ function quit() {
   S.token = null;
   setTimeout(heroResume, 50);
   clearInterval(S.tick);
-  for (const id of ['#hud', '#hintbox', '#radar']) $(id).hidden = true;
+  for (const id of ['#hud', '#hintbox', '#radar', '#intro']) $(id).hidden = true;
   if (S.pano) S.pano.setVisible(false);
   if (S.overlay) S.overlay.sync([]);
   refreshTitle();
@@ -769,6 +784,7 @@ async function boot() {
   $('#pickBtn').onclick = pickSpot;
   $('#pickBack').onclick = () => screen('title');
   $('#pickForm').onsubmit = searchPlaces;
+  $('#introGo').onclick = () => { sfx.click(); $('#intro').hidden = true; };
   $('#pickDrop').onclick = () => S.pickAt && startHunt(S.pickAt);
   $('#bagBtn').onclick = openBag;
   $('#hudBag').onclick = openBag;

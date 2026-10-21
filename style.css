@@ -102,6 +102,15 @@ body {
 .rewards-title { color: #b8860b; font-size: 10px; }
 #boardList { overflow-y: auto; padding-left: 26px; font-size: 9px; line-height: 2.2; }
 #boardList li.me { color: #e03c28; }
+.intro {
+  position: fixed; inset: 0; margin: auto; height: fit-content; z-index: 15;
+  width: min(380px, calc(100% - 32px)); text-align: center; display: flex; flex-direction: column; gap: 10px;
+  font-size: 9px; animation: dropIn .4s ease-out both;
+}
+.intro-label { color: #b8860b; font-size: 9px; }
+.intro h2 { font-size: 16px; color: #e03c28; }
+.intro-place { font-size: 9px; color: #485068; }
+.intro-stars { font-family: Arial, sans-serif; font-size: 20px; color: #f8a800; letter-spacing: 3px; }
 #hudTime.urgent { color: #ff6050; animation: pulse .6s ease-in-out infinite; }
 .disclaimer { color: #7888a8; font-size: 7px; line-height: 1.8; margin-top: 18px; }
 
