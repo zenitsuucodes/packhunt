@@ -214,11 +214,13 @@ async function startHunt(at) {
 
   ensurePano();
   heroStop();
+  pushBack();
   S.token = r.token;
   S.done = false;
   S.busy = false;
   S.hintCount = 0;
   S.wasNear = false;
+  S.lastTrend = '';
   S.epoch++;
   S.t0 = Date.now() - r.elapsed * 1000;
   S.wallet = r.wallet;
@@ -290,8 +292,34 @@ function apply(r) {
   S.wasNear = r.near;
   renderHints(r.hints, r.level);
   S.nextAt = r.nextIn != null ? Date.now() + r.nextIn * 1000 : 0;
+  renderRadar(r);
   S.deadline = r.timeLeft != null ? Date.now() + r.timeLeft * 1000 : 0;
   if (r.expired && !S.busy) timeUp();
+}
+
+// Always-visible radar badge: counts down until it unlocks (clue 3), then shows the trend after every step.
+function renderRadar(r) {
+  const chip = $('#radarChip');
+  const radar = (r || S.data)?.hints.find((h) => h.radar)?.radar;
+  chip.hidden = false;
+  if (!radar) {
+    const level = S.data?.level || 1;
+    const left = Math.max(0, Math.ceil((S.nextAt - Date.now()) / 1000));
+    chip.className = 'radar-chip';
+    chip.innerHTML = `<span class="r-label">GOLDEN RADAR</span>${level === 2 && S.nextAt ? `unlocks in ${fmtTime(left)}` : 'unlocks at clue 3'}`;
+    return;
+  }
+  if (!r) return;
+  const trend = radar.trend || S.lastTrend || '';
+  if (radar.trend && radar.trend !== S.lastTrend) {
+    chip.classList.remove('bump');
+    void chip.offsetWidth;
+    chip.classList.add('bump');
+  }
+  S.lastTrend = trend;
+  chip.className = `radar-chip ${trend} ${chip.classList.contains('bump') ? 'bump' : ''}`;
+  const word = trend === 'warmer' ? '<b>WARMER &#9650;</b>' : trend === 'colder' ? '<b>COLDER &#9660;</b>' : 'Walk to get a reading';
+  chip.innerHTML = `<span class="r-label">GOLDEN RADAR</span>${word}${radar.metres != null ? `<br>${radar.metres}m away` : ''}`;
 }
 
 function renderHints(hints, level) {
@@ -339,6 +367,7 @@ function tick() {
     hudTime.textContent = fmtTime((Date.now() - S.t0) / 1000);
     hudTime.classList.remove('urgent');
   }
+  if (!S.data?.hints.some((h) => h.radar)) renderRadar();
   if (!S.nextAt) { $('#hintNext').textContent = ''; return; }
   const left = Math.ceil((S.nextAt - Date.now()) / 1000);
   $('#hintNext').textContent = left > 0 ? `next ${left}s` : 'new clue!';
@@ -476,7 +505,7 @@ function endHunt() {
   S.busy = false;
   S.done = true;
   clearInterval(S.tick);
-  for (const id of ['#hud', '#hintbox', '#radar', '#intro']) $(id).hidden = true;
+  for (const id of ['#hud', '#hintbox', '#radar', '#intro', '#radarChip']) $(id).hidden = true;
   if (S.pano) S.pano.setVisible(false);
   if (S.overlay) S.overlay.sync([]);
 }
@@ -524,7 +553,7 @@ function quit() {
   S.token = null;
   setTimeout(heroResume, 50);
   clearInterval(S.tick);
-  for (const id of ['#hud', '#hintbox', '#radar', '#intro']) $(id).hidden = true;
+  for (const id of ['#hud', '#hintbox', '#radar', '#intro', '#radarChip']) $(id).hidden = true;
   if (S.pano) S.pano.setVisible(false);
   if (S.overlay) S.overlay.sync([]);
   refreshTitle();
@@ -767,6 +796,34 @@ async function openBoard(quiet) {
   }
 }
 
+// ---------- phone back button / back gesture ----------
+// Each screen we open pushes a history entry, so "back" returns to the menu instead of leaving the site.
+function pushBack() {
+  try { history.pushState({ packhunt: true }, ''); } catch {}
+}
+
+function installBack() {
+  for (const id of ['#challengesBtn', '#boardBtn', '#bagBtn', '#hudBag', '#resBag', '#pickBtn']) {
+    $(id).addEventListener('click', pushBack);
+  }
+  addEventListener('popstate', () => {
+    if (!$('#inspect').hidden) { $('#inspect').hidden = true; return; }
+    const zoomed = document.querySelector('#hintList img.zoom');
+    if (zoomed) { zoomed.classList.remove('zoom'); return; }
+    const cur = current();
+    const hunting = S.token && !S.done;
+    if (cur === 'bag' && (hunting || S.bagFrom)) { $('#bagClose').click(); return; }
+    if (cur === 'reveal' && !hunting) { hideCard(); screen('bag'); return; }
+    if (hunting && !S.busy) {
+      if (confirm('Leave this hunt and go back to the menu?')) quit();
+      else pushBack();
+      return;
+    }
+    if (hunting) { pushBack(); return; } // mid pack-opening: stay put
+    if (cur && cur !== 'title') { sfx.click(); refreshTitle(); screen('title'); heroResume(); }
+  });
+}
+
 // ---------- boot ----------
 async function boot() {
   S.fontReady = document.fonts.load('20px "Press Start 2P"').catch(() => {});
@@ -791,7 +848,8 @@ async function boot() {
   $('#resBag').onclick = openBag;
   $('#bagClose').onclick = () => { sfx.click(); refreshTitle(); screen(S.bagFrom); };
   $('#againBtn').onclick = () => { S.token = null; refreshTitle(); screen('title'); heroResume(); };
-  $('#hudQuit').onclick = () => { if (confirm('Quit this hunt?')) quit(); };
+  $('#hudQuit').onclick = () => { if (confirm('Leave this hunt and go back to the menu?')) quit(); };
+  installBack();
   $('#hintHead').onclick = () => $('#hintbox').classList.toggle('collapsed');
   const snd = $('#hudSound');
   snd.classList.toggle('off', sfx.isMuted());

@@ -111,6 +111,19 @@ body {
 .intro h2 { font-size: 16px; color: #e03c28; }
 .intro-place { font-size: 9px; color: #485068; }
 .intro-stars { font-family: Arial, sans-serif; font-size: 20px; color: #f8a800; letter-spacing: 3px; }
+.radar-chip {
+  position: fixed; top: 54px; right: 10px; z-index: 10; pointer-events: none;
+  background: rgba(16, 24, 48, .88); color: #f8f8f8; border: 3px solid #a8b8c8; border-radius: 6px;
+  padding: 7px 9px; font-size: 9px; line-height: 1.5; text-align: right;
+}
+.radar-chip .r-label { color: #a8b8c8; font-size: 7px; display: block; }
+.radar-chip.warmer { border-color: #ff6050; }
+.radar-chip.warmer b { color: #ff6050; }
+.radar-chip.colder { border-color: #60a8ff; }
+.radar-chip.colder b { color: #60a8ff; }
+.radar-chip.bump { animation: radarBump .5s ease-out; }
+@keyframes radarBump { 0% { transform: scale(1.15); } 100% { transform: none; } }
+#radar { top: 104px; }
 #hudTime.urgent { color: #ff6050; animation: pulse .6s ease-in-out infinite; }
 .disclaimer { color: #7888a8; font-size: 7px; line-height: 1.8; margin-top: 18px; }
 
@@ -341,7 +354,13 @@ body {
 
 @media (max-width: 560px) {
   #hud .logo { display: none; }
-  #hud { gap: 8px; font-size: 9px; }
+  #hud { gap: 6px; font-size: 8px; padding: 8px; }
+  #hud > span { white-space: nowrap; }
+  #hudPacks { margin-right: auto; }
+  #hudPacks::before { content: "PK "; }
+  #hudScore::before { content: "PT "; }
+  .icon-btn { font-size: 8px; padding: 4px 5px; white-space: nowrap; }
+  .radar-chip { top: 50px; }
   .big-logo { font-size: 36px; }
 }
 
