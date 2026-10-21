@@ -297,7 +297,7 @@ function apply(r) {
   if (r.expired && !S.busy) timeUp();
 }
 
-// Always-visible radar badge: counts down until it unlocks (clue 3), then shows the trend after every step.
+// Always-visible radar badge: counts down until it unlocks (clue 2), then shows the trend after every step.
 function renderRadar(r) {
   const chip = $('#radarChip');
   const radar = (r || S.data)?.hints.find((h) => h.radar)?.radar;
@@ -306,7 +306,7 @@ function renderRadar(r) {
     const level = S.data?.level || 1;
     const left = Math.max(0, Math.ceil((S.nextAt - Date.now()) / 1000));
     chip.className = 'radar-chip';
-    chip.innerHTML = `<span class="r-label">GOLDEN RADAR</span>${level === 2 && S.nextAt ? `unlocks in ${fmtTime(left)}` : 'unlocks at clue 3'}`;
+    chip.innerHTML = `<span class="r-label">GOLDEN RADAR</span>${level === 1 && S.nextAt ? `unlocks in ${fmtTime(left)}` : 'unlocks at clue 2'}`;
     return;
   }
   if (!r) return;

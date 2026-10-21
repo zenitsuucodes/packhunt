@@ -81,7 +81,12 @@ export function view(st, pos, now) {
   const hints = [];
   const band = Math.max(100, Math.round(dist(st.s, gold) / 100) * 100);
   hints.push({ icon: 'compass', text: `The Golden pack hides roughly ${compass(bearing(st.s, gold))} of where you landed, about ${band}m away.` });
+  // Clue ladder: 1 compass, 2 radar, 3 landmark, 4 photo, 5 street + exact distance.
   if (level >= 2) {
+    const trend = st.gd == null || Math.abs(gd - st.gd) < 2 ? '' : gd < st.gd ? 'warmer' : 'colder';
+    hints.push({ icon: 'radar', radar: { metres: level >= 5 ? gd : null, trend } });
+  }
+  if (level >= 3) {
     hints.push({
       icon: 'pin',
       text: !r.landmark ? 'The locals keep quiet here. No landmark clue in this challenge.'
@@ -90,10 +95,6 @@ export function view(st, pos, now) {
           : st.lm.kind ? `It's within 100m of a ${st.lm.kind} called "${st.lm.name}".`
             : `It's within 150m of "${st.lm.name}".`,
     });
-  }
-  if (level >= 3) {
-    const trend = st.gd == null || Math.abs(gd - st.gd) < 2 ? '' : gd < st.gd ? 'warmer' : 'colder';
-    hints.push({ icon: 'radar', radar: { metres: level >= 5 ? gd : null, trend } });
   }
   if (level >= 4) {
     hints.push(r.photo
