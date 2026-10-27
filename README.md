@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://packhunt-nine.vercel.app"><b>Play now</b></a>
+  <a href="https://packhunt.online"><b>Play now at packhunt.online</b></a>
 </p>
 
 ---
@@ -37,15 +37,6 @@
 - three.js for the 3D packs and pack opening
 - Vercel functions for hunts, clues and card rolls, with Upstash Redis for limits and saved cards
 - Card data from the community [Pokémon TCG data](https://github.com/PokemonTCG/pokemon-tcg-data) project
-
-## Run locally
-
-```bash
-cp .env.example .env.local
-npm run dev
-```
-
-Add your Google Maps key to `.env.local` first ([SETUP.md](SETUP.md) has the steps). The game runs at `http://localhost:5200`, and `http://localhost:5200/?demo` shows the pack opening without any keys.
 
 ## Disclaimer
 
