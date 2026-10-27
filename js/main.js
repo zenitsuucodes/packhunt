@@ -511,9 +511,9 @@ function endHunt() {
 }
 
 function walletLine(recorded) {
-  if (recorded) return `Score recorded for ${shortAddr(S.wallet)} on this week's leaderboard.`;
+  if (recorded) return `Your cards and score are recorded to ${shortAddr(S.wallet)}.`;
   if (S.wallet) return "The leaderboard isn't live yet, so this score wasn't recorded.";
-  return 'Connect a Solana wallet to record scores and compete for weekly rewards.';
+  return 'Connect your Solana wallet to record the cards you collect.';
 }
 
 function finish() {
@@ -771,7 +771,7 @@ async function toggleWallet() {
   } else {
     const r = await connectWallet();
     if (r.error) { sfx.error(); toast(r.error, 5000); }
-    else if (!r.pending) { sfx.hint(); toast(`Wallet ${shortAddr(r.wallet)} connected. Finished hunts now count!`); }
+    else if (!r.pending) { sfx.hint(); toast(`Wallet ${shortAddr(r.wallet)} connected. Your cards will now be recorded.`); }
   }
   refreshTitle();
   if (!$('#board').hidden) openBoard(true);

@@ -1,4 +1,4 @@
-// Optional Solana wallet sign-in (Phantom, Solflare or Backpack) so finished hunts count on the leaderboard.
+// Optional Solana wallet sign-in (Phantom, Solflare or Backpack) so collected cards and scores are recorded to that wallet.
 const KEY = 'packhunt_wallet';
 
 export function getSession() {

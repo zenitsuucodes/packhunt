@@ -114,6 +114,24 @@ export async function recordScore(wallet, score) {
   }
 }
 
+// Every card a wallet pulls, newest last (kept to the latest 2,000).
+export async function recordCard(wallet, card, place, at) {
+  if (!HAS_REDIS) return false;
+  try {
+    const entry = JSON.stringify({ id: card.id, name: card.name, set: card.set, rarity: card.rarity, tier: card.tier, place, at });
+    await redis('RPUSH', `cards:${wallet}`, entry);
+    await redis('LTRIM', `cards:${wallet}`, -2000, -1);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function walletCards(wallet, n = 200) {
+  const list = await redis('LRANGE', `cards:${wallet}`, -n, -1);
+  return list.map((x) => JSON.parse(x)).reverse();
+}
+
 export async function topScores(key, n = 25) {
   const flat = await redis('ZREVRANGE', key, 0, n - 1, 'WITHSCORES');
   const out = [];

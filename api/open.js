@@ -1,6 +1,6 @@
 // POST /api/open {token, packId, lat, lng} -> rip a nearby pack; the card is rolled here.
 import { dist } from '../js/geo.js';
-import { seal, unseal, placeName, recordScore } from './_lib/server.js';
+import { seal, unseal, placeName, recordScore, recordCard } from './_lib/server.js';
 import { view, validPos, tooFast, rollCard, expired, HUNT_TTL } from './_lib/game.js';
 
 export default async function handler(req, res) {
@@ -43,7 +43,9 @@ export default async function handler(req, res) {
       ? `/api/photo?p=${seal({ pano: pack.pn, from: { lat: pack.sl, lng: pack.sg }, to: { lat: pack.lat, lng: pack.lng }, big: 1 })}`
       : null,
   };
+  // Connected wallets keep a record of every card they collect.
+  const cardSaved = st.w ? await recordCard(st.w, card, foundAt.place, now) : false;
   return res.status(200).json({
-    token: seal(st), card, foundAt, bonusHint: !pack.g, finishTime: st.ft ?? null, timeBonus, recorded, ...v,
+    token: seal(st), card, foundAt, cardSaved, bonusHint: !pack.g, finishTime: st.ft ?? null, timeBonus, recorded, ...v,
   });
 }

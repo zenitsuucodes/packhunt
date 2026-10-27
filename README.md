@@ -4,7 +4,7 @@ Pokémon GO, but inside Google Street View. Drop anywhere on Earth, follow the c
 
 - Realistic 3D booster packs (foil wrapper, crimped ends, set logo and cover art) floating in the Street View panorama
 - 12 timed challenges at famous spots (Times Square, Shibuya, the Colosseum and more), plus harder wild drops anywhere
-- Optional Solana wallet sign-in to record finished hunts on a weekly leaderboard for creator rewards
+- Optional Solana wallet sign-in to record the cards you collect
 - Pack opening animation and 8-bit sound effects
 - Real Pokémon TCG cards (common, uncommon, rare, holo and golden-tier pulls) shown with a textured holo-foil effect over a Street View photo of where each card was found
 - Pack locations, card rolls and clues are handled on the server (Vercel functions)
