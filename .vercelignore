@@ -5,3 +5,6 @@ assets/src
 assets/packhunt_logo.png
 PLAN.md
 SETUP.md
+.agents
+.claude
+skills-lock.json
