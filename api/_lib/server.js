@@ -55,8 +55,9 @@ export async function snap(p, radius) {
 }
 
 // ---------- Upstash Redis (REST) ----------
-const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL;
-const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+// Upstash's own names, or the KV_* names Vercel's Upstash integration adds.
+const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
 export const HAS_REDIS = Boolean(REDIS_URL && REDIS_TOKEN);
 
 async function redis(...cmd) {
